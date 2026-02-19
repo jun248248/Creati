@@ -26,7 +26,7 @@ public class UserDao {
         PreparedStatement pstmt = null;
         ResultSet rs = null;
 
-        String sql = "SELECT * FROM user WHERE u_id = ? AND u_pw_hash = ?";
+        String sql = "SELECT * FROM users WHERE u_id = ? AND u_pw_hash = ?";
 
         try {
             conn = pool.getConnection();
@@ -173,4 +173,6 @@ public class UserDao {
 
         return false;
     }
+    
+    
 }
