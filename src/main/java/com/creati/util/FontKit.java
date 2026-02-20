@@ -55,7 +55,6 @@ public class FontKit {
         return get("MaterialIcons", size);
     }
 
-
     public static Font thin(float size) { return get("Thin", size); }
     public static Font extraLight(float size) { return get("ExtraLight", size); }
     public static Font light(float size) { return get("Light", size); }

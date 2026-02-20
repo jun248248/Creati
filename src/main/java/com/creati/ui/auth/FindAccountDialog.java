@@ -94,7 +94,6 @@ public class FindAccountDialog extends JDialog {
         JButton btnPrimary = new JButton("조회");
         stylePrimary(btnPrimary);
 
-        // 모드에 따라 primary 텍스트 변경
         tabFindId.addActionListener(e -> btnPrimary.setText("조회"));
         tabResetPw.addActionListener(e -> btnPrimary.setText("재설정"));
 
@@ -102,9 +101,9 @@ public class FindAccountDialog extends JDialog {
         btnPrimary.addActionListener(e -> {
             if (tabFindId.isSelected()) {
                 // 아이디 찾기 → 조회
-                // TODO: AuthService.findId(phone, email) 연결
+                // TODO AuthService.findId(phone, email) 연결
                 // 지금은 UI 시연용 샘플
-                boolean userExists = true; // TODO: 실제로는 DB 조회 결과에 따라
+                boolean userExists = true; // TODO 실제로는 DB 조회 결과에 따라
                 
                 if (userExists) {
                     idResultLabel.setForeground(new Color(0x2E7D32));
@@ -115,7 +114,7 @@ public class FindAccountDialog extends JDialog {
                 }
             } else {
                 // 비밀번호 재설정 → 최종 재설정
-                // TODO: AuthService.resetPassword(id, newPw) 연결
+                // TODO AuthService.resetPassword(id, newPw) 연결
                 JOptionPane.showMessageDialog(this, "비밀번호가 재설정되었습니다. (샘플)");
                 dispose();
             }
@@ -126,7 +125,6 @@ public class FindAccountDialog extends JDialog {
         bottom.setBorder(new EmptyBorder(16, 0, 0, 0));
         bottom.add(btnClose);
         bottom.add(btnPrimary);
-
 
         root.add(header, BorderLayout.NORTH);
 
@@ -231,7 +229,7 @@ public class FindAccountDialog extends JDialog {
                 toast("이메일을 입력하세요.");
                 return;
             }
-            // TODO: AuthService.requestResetCode(id, email) 연결
+            // TODO AuthService.requestResetCode(id, email) 연결
             tfCode.setEnabled(true);
             btnVerify.setEnabled(true);
             toast("인증번호를 이메일로 전송했습니다. (샘플)");
@@ -244,7 +242,7 @@ public class FindAccountDialog extends JDialog {
                 toast("인증번호를 입력하세요.");
                 return;
             }
-            // TODO: AuthService.verifyCode(code) 연결
+            // TODO AuthService.verifyCode(code) 연결
             pfNew.setEnabled(true);
             pfNew2.setEnabled(true);
             toast("인증 완료! 새 비밀번호를 설정하세요. (샘플)");

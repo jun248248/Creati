@@ -37,7 +37,6 @@ public class UITheme {
 			init();
 	}
 
-	// 디버그/확인용
 	public static boolean isInited() {
 		return inited;
 	}

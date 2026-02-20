@@ -1,5 +1,7 @@
 package com.creati.ui.auth;
 
+import com.creati.model.User;
+import com.creati.service.AuthService;
 import com.creati.ui.main.MainFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
@@ -228,17 +230,21 @@ public class AuthFrame extends JFrame {
 			return;
 		}
 
-		// TODO: DB 로그인 검증 연결
-		if (!("aaa".equals(id) && "1234".equals(pw))) {
-			msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
-			return;
+		// TODO (DB) 로그인 검증 연결
+		AuthService auth = AuthService.getInstance();
+		User user = auth.login(id, pw);
+
+		if (user == null) {
+		    msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
+		    return;
 		}
 
-		// 로그인 성공 -> 메인으로 이동 (영상 정리)
-		if (videoPanel != null)
-			videoPanel.stop();
+		// 로그인 성공
+		if (videoPanel != null) videoPanel.stop();
 		dispose();
-		new MainFrame(id).setVisible(true);
+
+		// 닉네임 + 랜덤 프로필 적용
+		new MainFrame(user.getNickname(), user.getProfileResPath()).setVisible(true);
 	}
 
 	private void setFieldSize(JComponent field, Dimension d) {

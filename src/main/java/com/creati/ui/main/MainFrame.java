@@ -1,7 +1,6 @@
 package com.creati.ui.main;
 
 import com.creati.ui.main.MainUiParts.CircleAvatar;
-import com.creati.ui.main.MainUiParts.EllipsisButton;
 import com.creati.ui.main.MainUiParts.RoundedButton;
 import com.creati.ui.main.MainUiParts.ShadowLabel;
 import com.creati.util.FontKit;
@@ -9,21 +8,22 @@ import com.creati.util.UITheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.plaf.basic.BasicMenuItemUI;
 
 import static com.creati.ui.main.MainUiParts.*;
 
 import java.awt.*;
-import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.Objects;
 
 /**
- * MainFrame (조립 + 카드 전환 + 상단/사이드) - HOME 화면은 MainHomeView로 분리 - 커스텀 컴포넌트/이미지
- * 유틸은 MainUiParts로 분리 - CHALLENGE는 ChallengeView (검색 연동)
+ * MainFrame
  */
 public class MainFrame extends JFrame {
 
-	// asset paths
-	static final Path ETTI_PATH = Path.of("assets/images/etti/etti_default.png");
-	static final Path DEFAULT_PROFILE_PATH = Path.of("assets/images/profile/default_profile.png");
+	// resources (src/main/resources)
+	private static final String ETTI_RES = "/images/etti/etti_default.png";
+	private static final String DEFAULT_PROFILE_RES = "/images/profile/default_profile.png";
 
 	// cards
 	private static final String CARD_HOME = "HOME";
@@ -31,14 +31,26 @@ public class MainFrame extends JFrame {
 	private static final String CARD_AI = "AI";
 	private static final String CARD_COMMUNITY = "COMMUNITY";
 	private static final String CARD_QNA = "QNA";
+	private static final String CARD_QNA_WRITE = "QNA_WRITE";
+	private static final String CARD_STATS = "STATS";
+	private static final String CARD_WRITE = "WRITE";
+	private static final String CARD_LOG_DETAIL = "LOG_DETAIL";
 
 	private final CardLayout cardLayout = new CardLayout();
 	private final JPanel contentCards = new JPanel(cardLayout);
+	private String currentCardKey = CARD_HOME;
 
 	private final MainSearchBar searchBar = new MainSearchBar();
 	private final ChallengeView challengeView = new ChallengeView();
+	private WriteLogView writeLogView;
+	private final AtomicReference<LogPost> currentPostRef = new AtomicReference<>();
+	private final LogDetailView logDetailView = new LogDetailView(
+		    () -> showCard(CARD_CHALLENGE),
+		    null, // onRetry (아직 없으면 null로)
+		    () -> openLogEdit(currentPostRef.get())
+		);
 
-	private JPanel topArea; // (에티 + 검색창) 묶음
+	private JPanel topArea;
 
 	private final String nickname;
 	private final Image profileImage;
@@ -48,13 +60,20 @@ public class MainFrame extends JFrame {
 	// 월간 AI 인사이트: 이번 달 1개만 유지(기능 연결 전 임시 상태)
 	private String currentInsightText = null;
 
-	public MainFrame(String nickname) {
+	public MainFrame(String nickname, String profileResPath) {
 		super("Creati - 메인");
 		this.nickname = nickname;
 
 		UITheme.ensureInit();
+		UIManager.put("MenuItem.selectionForeground", Color.BLACK);
+		UIManager.put("MenuItem.selectionBackground", new Color(245, 245, 248)); 
+		UIManager.put("MenuItem.foreground", Color.BLACK);
+		UIManager.put("MenuItem.disabledForeground", Color.BLACK);
 
-		this.profileImage = loadImage(DEFAULT_PROFILE_PATH);
+		UIManager.put("PopupMenu.border", BorderFactory.createLineBorder(new Color(210, 210, 220), 1));
+
+		String res = (profileResPath == null || profileResPath.isBlank()) ? DEFAULT_PROFILE_RES : profileResPath;
+		this.profileImage = loadImageResource(res);
 
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setSize(1200, 760);
@@ -64,9 +83,11 @@ public class MainFrame extends JFrame {
 		showCard(CARD_HOME);
 	}
 
-	// Material Icons - settings (⚙)
+	public MainFrame(String nickname) {
+		this(nickname, DEFAULT_PROFILE_RES);
+	}
+
 	private String makeSettingsIcon() {
-		// settings = 0xE8B8
 		try {
 			return new String(Character.toChars(0xE8B8));
 		} catch (Exception e) {
@@ -105,10 +126,25 @@ public class MainFrame extends JFrame {
 		// CHALLENGE (실제 화면)
 		contentCards.add(challengeView, CARD_CHALLENGE);
 
+		// LOG DETAIL (상세 화면)
+		contentCards.add(logDetailView, CARD_LOG_DETAIL);
+
+		// WRITE (새 성장 로그 작성)
+		writeLogView = new WriteLogView(this,
+				() -> showCard(CARD_CHALLENGE),
+				() -> showCard(CARD_CHALLENGE)
+		);
+		contentCards.add(writeLogView, CARD_WRITE);
+
 		// 기타
+		contentCards.add(buildPlaceholder("통계 - 준비중"), CARD_STATS);
 		contentCards.add(buildPlaceholder("AI 분석 - TODO UI"), CARD_AI);
 		contentCards.add(buildPlaceholder("커뮤니티 - 공개 글 리스트 - TODO UI"), CARD_COMMUNITY);
 		contentCards.add(buildPlaceholder("질문하기 - Q&A 게시판 - TODO UI"), CARD_QNA);
+		contentCards.add(new QuestionWriteView(this,
+				() -> showCard(CARD_HOME),
+				() -> showCard(CARD_QNA)
+		), CARD_QNA_WRITE);
 
 		center.add(contentCards, BorderLayout.CENTER);
 		root.add(center, BorderLayout.CENTER);
@@ -150,17 +186,14 @@ public class MainFrame extends JFrame {
 
 		JButton settingsBtn = new JButton(makeSettingsIcon());
 		settingsBtn.setToolTipText("설정");
-
 		settingsBtn.setFont(FontKit.materialIcon(20f));
 		settingsBtn.setForeground(new Color(130, 130, 145));
 		settingsBtn.setBackground(Color.WHITE);
-
 		settingsBtn.setBorder(new EmptyBorder(6, 6, 6, 6));
 		settingsBtn.setFocusPainted(false);
 		settingsBtn.setContentAreaFilled(false);
 		settingsBtn.setOpaque(false);
 		settingsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
 		settingsBtn.addActionListener(e -> JOptionPane.showMessageDialog(this, "TODO: 설정 화면 연결"));
 
 		profileRow.add(avatar);
@@ -175,16 +208,31 @@ public class MainFrame extends JFrame {
 		writeBtn.setForeground(Color.WHITE);
 		writeBtn.setFont(UITheme.BODY_MED);
 
-		writeMenu = buildWriteMenu(writeBtn);
+		writeMenu = buildWriteMenu();
 
 		writeBtn.addActionListener(e -> {
 			if (writeMenu.isVisible()) {
 				writeMenu.setVisible(false);
-			} else {
-				Dimension m = writeMenu.getPreferredSize();
-				int x = writeBtn.getWidth() - m.width;
-				writeMenu.show(writeBtn, x, writeBtn.getHeight() + 6);
+				return;
 			}
+
+			int popupW = 180;
+			int itemH = 44;
+			int count = writeMenu.getComponentCount();
+			int popupH = itemH * count;
+
+			for (Component c : writeMenu.getComponents()) {
+				if (c instanceof JMenuItem mi) {
+					mi.setPreferredSize(new Dimension(popupW, itemH));
+					mi.setMinimumSize(new Dimension(popupW, itemH));
+					mi.setMaximumSize(new Dimension(popupW, itemH));
+				}
+			}
+
+			writeMenu.setPopupSize(popupW, popupH);
+			int x = writeBtn.getWidth() - popupW;
+			int y = writeBtn.getHeight();
+			writeMenu.show(writeBtn, x, y);
 		});
 
 		JPanel writeRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
@@ -204,91 +252,64 @@ public class MainFrame extends JFrame {
 	// =========================
 	// Write Menu
 	// =========================
-	private JPopupMenu buildWriteMenu(JComponent anchor) {
+	private JPopupMenu buildWriteMenu() {
 		JPopupMenu menu = new JPopupMenu();
 		menu.setBackground(Color.WHITE);
-		menu.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true), new EmptyBorder(6, 6, 6, 6)));
+		menu.setOpaque(true);
+		menu.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 220), 1));
+		menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
 
-		String t1 = "새 성장 로그 작성";
-		String t2 = "질문하기";
-
-		int itemW = Math.max(measureWidth(anchor, t1), measureWidth(anchor, t2));
-		itemW = Math.max(itemW, 200);
-
-		JPanel panel = new JPanel();
-		panel.setOpaque(false);
-		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-
-		JButton b1 = makeWriteMenuButtonLeft(t1, itemW);
-		JButton b2 = makeWriteMenuButtonLeft(t2, itemW);
-
-		b1.addActionListener(e -> {
-			menu.setVisible(false);
-			JOptionPane.showMessageDialog(this, "TODO: 새 성장 로그 작성 화면");
+		JMenuItem newLog = createMenuItem("새 성장 로그 작성", () -> {
+			if (writeLogView != null) writeLogView.startNew();
+			showCard(CARD_WRITE);
 		});
+		JMenuItem ask = createMenuItem("질문하기", () -> showCard(CARD_QNA_WRITE));
 
-		b2.addActionListener(e -> {
-			menu.setVisible(false);
-			showCard(CARD_QNA);
-		});
+		menu.add(newLog);
+		menu.add(ask);
 
-		panel.add(b1);
-		panel.add(Box.createVerticalStrut(6));
-		panel.add(b2);
-
-		menu.add(panel);
 		return menu;
 	}
 
-	private int measureWidth(JComponent comp, String text) {
-		Font f = (UITheme.BODY_MED != null) ? UITheme.BODY_MED : comp.getFont();
-		FontMetrics fm = comp.getFontMetrics(f);
-		return fm.stringWidth(text) + 40;
-	}
+	private JMenuItem createMenuItem(String text, Runnable action) {
+		JMenuItem item = new JMenuItem(text);
 
-	private JButton makeWriteMenuButtonLeft(String text, int w) {
-		JButton btn = new JButton(text);
-		btn.setFocusPainted(false);
-		btn.setBorderPainted(false);
-		btn.setContentAreaFilled(false);
-		btn.setOpaque(true);
-		btn.setBackground(Color.WHITE);
-		btn.setForeground(UITheme.TEXT);
-		btn.setFont(UITheme.BODY_MED);
-		btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		btn.setHorizontalAlignment(SwingConstants.LEFT);
+		item.setFont(UITheme.BODY_MED);
+		item.setForeground(Color.BLACK);
 
-		btn.setPreferredSize(new Dimension(w, 40));
-		btn.setMaximumSize(new Dimension(w, 40));
-		btn.setBorder(new EmptyBorder(8, 14, 8, 14));
+		item.setHorizontalAlignment(SwingConstants.LEFT);
 
-		btn.addMouseListener(new java.awt.event.MouseAdapter() {
+		item.setOpaque(true);
+		item.setBackground(Color.WHITE);
+		item.setBorder(new EmptyBorder(12, 16, 12, 16));
+		item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+		item.setUI(new BasicMenuItemUI() {
 			@Override
-			public void mouseEntered(java.awt.event.MouseEvent e) {
-				btn.setBackground(LAVENDER_HOVER);
-				btn.setBorder(BorderFactory.createCompoundBorder(
-						BorderFactory.createLineBorder(LAVENDER_BORDER, 1, true), new EmptyBorder(7, 13, 7, 13)));
+			protected void paintBackground(Graphics g, JMenuItem mi, Color bgColor) {
+				ButtonModel m = mi.getModel();
+				if (m.isArmed() || m.isRollover() || m.isPressed()) {
+					g.setColor(new Color(245, 245, 248)); 
+				} else {
+					g.setColor(Color.WHITE);
+				}
+				g.fillRect(0, 0, mi.getWidth(), mi.getHeight());
 			}
 
 			@Override
-			public void mouseExited(java.awt.event.MouseEvent e) {
-				btn.setBackground(Color.WHITE);
-				btn.setBorder(new EmptyBorder(8, 14, 8, 14));
-			}
-
-			@Override
-			public void mousePressed(java.awt.event.MouseEvent e) {
-				btn.setBackground(LAVENDER_HOVER.darker());
-			}
-
-			@Override
-			public void mouseReleased(java.awt.event.MouseEvent e) {
-				btn.setBackground(LAVENDER_HOVER);
+			protected void paintText(Graphics g, JMenuItem mi, Rectangle textRect, String text) {
+				g.setColor(Color.BLACK);
+				super.paintText(g, mi, textRect, text);
 			}
 		});
 
-		return btn;
+		item.addActionListener(e -> {
+			if (writeMenu != null)
+				writeMenu.setVisible(false);
+			action.run();
+		});
+
+		return item;
 	}
 
 	// =========================
@@ -305,6 +326,8 @@ public class MainFrame extends JFrame {
 		side.add(menuButton("나의 홈", CARD_HOME));
 		side.add(Box.createVerticalStrut(6));
 		side.add(menuButton("나의 도전", CARD_CHALLENGE));
+		side.add(Box.createVerticalStrut(6));
+		side.add(menuButton("통계", CARD_STATS));
 		side.add(Box.createVerticalStrut(6));
 		side.add(menuButton("AI 분석", CARD_AI));
 		side.add(Box.createVerticalStrut(6));
@@ -345,7 +368,8 @@ public class MainFrame extends JFrame {
 				BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true), new EmptyBorder(12, 20, 12, 12)));
 
 		JLabel etti = new JLabel();
-		Icon ettiIcon = createHiDPIIcon(ETTI_PATH, 52, true);
+
+		Icon ettiIcon = createHiDPIIconResource(ETTI_RES, 52, true);
 		if (ettiIcon != null) {
 			etti.setIcon(ettiIcon);
 		} else {
@@ -402,19 +426,51 @@ public class MainFrame extends JFrame {
 	// =========================
 	// Card Control
 	// =========================
+	public void openLogDetail(LogPost post) {
+		currentPostRef.set(post);
+		logDetailView.bind(post);
+		showCard(CARD_LOG_DETAIL);
+	}
+
+	public void openLogEdit(LogPost post) {
+		if (post == null) {
+			JOptionPane.showMessageDialog(this, "수정할 기록을 찾지 못했어요.");
+			return;
+		}
+		writeLogView.beginEdit(post, updated -> {
+			openLogDetail(updated);
+		});
+		showCard(CARD_WRITE);
+	}
+
+	public void navigateToAi() {
+		showCard(CARD_AI);
+	}
+
 	private void showCard(String key) {
+		if (!Objects.equals(currentCardKey, key)) {
+			if (Objects.equals(currentCardKey, CARD_WRITE) && !Objects.equals(key, CARD_WRITE) && writeLogView != null) {
+				if (writeLogView.isDirty()) {
+					boolean ok = writeLogView.confirmLeave();
+					if (!ok) return;
+				}
+			}
+		}
 		cardLayout.show(contentCards, key);
+		currentCardKey = key;
 
 		boolean isChallenge = CARD_CHALLENGE.equals(key);
+		boolean isWrite = CARD_WRITE.equals(key) || CARD_QNA_WRITE.equals(key);
 
 		searchBar.setVisible(isChallenge);
+		if (topArea != null) {
+			topArea.setVisible(!isWrite);
+		}
 
-		// 홈으로 돌아갈 때 검색어/필터 초기화
 		if (!isChallenge) {
 			searchBar.setQuery("");
 			challengeView.setQuery("");
 		}
-
 		if (topArea != null) {
 			topArea.revalidate();
 			topArea.repaint();
@@ -422,13 +478,17 @@ public class MainFrame extends JFrame {
 	}
 
 	// =========================
-	// Insight State (HomeView가 콜백으로 접근)
+	// Insight State
 	// =========================
 	private String getCurrentInsightText() {
 		return currentInsightText;
 	}
 
-	private void setCurrentInsightText(String text) {
-		this.currentInsightText = text;
+	private void setCurrentInsightText(String newText) {
+		currentInsightText = newText;
+	}
+
+	public static void main(String[] args) {
+		SwingUtilities.invokeLater(() -> new MainFrame("지현").setVisible(true));
 	}
 }
