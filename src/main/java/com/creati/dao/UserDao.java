@@ -20,29 +20,31 @@ public class UserDao {
     /*
      로그인
      */
-    public UserDto login(String userId, String passwordHash) {
+    public UserDto login(String userId, String password) {
 
         Connection conn = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
 
-        String sql = "SELECT * FROM users WHERE u_id = ? AND u_pw_hash = ?";
+        String sql = "SELECT * FROM users WHERE u_id = ?";
 
         try {
             conn = pool.getConnection();
             pstmt = conn.prepareStatement(sql);
-
             pstmt.setString(1, userId);
-            pstmt.setString(2, passwordHash);
 
             rs = pstmt.executeQuery();
 
             if (rs.next()) {
 
+            	String storedPw = rs.getString("u_pw_hash");
+            	
+            	if (!storedPw.equals(password)) {
+                    return null;
+                }
             	UserDto user = new UserDto();
 
                 user.setId(rs.getString("u_id"));
-                user.setPwHash(rs.getString("u_pw_hash"));
                 user.setName(rs.getString("u_name"));
                 user.setPhone(rs.getString("u_phone"));
                 user.setEmail(rs.getString("u_email"));

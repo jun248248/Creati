@@ -3,6 +3,8 @@ package com.creati.ui.auth;
 import com.creati.ui.main.MainFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.dao.UserDao;
+import com.creati.dto.UserDto;
 import com.creati.model.LogRepository;
 import com.creati.model.LogRepositoryImpl;
 import com.creati.service.LogService;
@@ -234,10 +236,12 @@ public class AuthFrame extends JFrame {
 			return;
 		}
 
-		// TODO: DB 로그인 검증 연결
-		if (!("aaa".equals(id) && "1234".equals(pw))) {
-			msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
-			return;
+		UserDao userDao = new UserDao();
+		UserDto loginUser = userDao.login(id, pw);
+
+		if (loginUser == null) {
+		    msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
+		    return;
 		}
 
 		// 로그인 성공 -> 메인으로 이동 (영상 정리)
