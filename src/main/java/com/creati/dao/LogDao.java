@@ -87,7 +87,7 @@ public class LogDao {
 	/*
 	 내 로그 리스트 조회 (요약용)
 	 */
-	public List<MyLogListDto> findMyLogList(String userId) {
+	public List<MyLogListDto> findMyLogList(String userId, Long categoryId) {
 		
 	    Connection conn = null;
 	    PreparedStatement pstmt = null;
@@ -105,14 +105,23 @@ public class LogDao {
 	            FROM log l
 	            JOIN category c ON l.c_id = c.c_id
 	            WHERE l.u_id = ?
-	            ORDER BY l.l_created_at DESC
 	            """;
 
+	    boolean hasCategory = (categoryId != null && categoryId > 0);
+		if (hasCategory) {
+			sql += " AND l.c_id = ? \n"; 
+		}
+	
+		sql += " ORDER BY l.l_created_at DESC";
+	    
 	    try {
 	        conn = pool.getConnection();
 	        pstmt = conn.prepareStatement(sql);
 
 	        pstmt.setString(1, userId);
+	        if (hasCategory) {
+				pstmt.setLong(2, categoryId);
+			}
 
 	        rs = pstmt.executeQuery();
 

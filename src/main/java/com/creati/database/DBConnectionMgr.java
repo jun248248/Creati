@@ -39,8 +39,8 @@ import java.util.Vector;
 public class DBConnectionMgr {
     private Vector connections = new Vector(10);
     private String _driver = "com.mysql.cj.jdbc.Driver",
-    _url = "jdbc:mysql://localhost:3306/creati?characterEncoding=UTF-8&serverTimezone=UTC",
-    _user = "root",
+    _url = "jdbc:mysql://113.198.238.104:3306/creati?characterEncoding=UTF-8&serverTimezone=UTC",
+    _user = "teamuser",
     _password = "1234";
     
     private boolean _traceOn = false;
