@@ -3,6 +3,9 @@ package com.creati.ui.auth;
 import com.creati.ui.main.MainFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.model.LogRepository;
+import com.creati.model.LogRepositoryImpl;
+import com.creati.service.LogService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -241,7 +244,11 @@ public class AuthFrame extends JFrame {
 		if (videoPanel != null)
 			videoPanel.stop();
 		dispose();
-		new MainFrame(id).setVisible(true);
+		
+		LogRepository repository = new LogRepositoryImpl(); 
+	    LogService logService = new LogService(repository);
+		
+	    new MainFrame(id, logService).setVisible(true);
 	}
 
 	private void setFieldSize(JComponent field, Dimension d) {

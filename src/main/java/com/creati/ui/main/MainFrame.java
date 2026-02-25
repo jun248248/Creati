@@ -6,6 +6,7 @@ import com.creati.ui.main.MainUiParts.RoundedButton;
 import com.creati.ui.main.MainUiParts.ShadowLabel;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.service.LogService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -20,6 +21,8 @@ import java.nio.file.Path;
  * 유틸은 MainUiParts로 분리 - CHALLENGE는 ChallengeView (검색 연동)
  */
 public class MainFrame extends JFrame {
+	
+    private final LogService logService;
 
 	// asset paths
 	static final Path ETTI_PATH = Path.of("assets/images/etti/etti_default.png");
@@ -48,10 +51,10 @@ public class MainFrame extends JFrame {
 	// 월간 AI 인사이트: 이번 달 1개만 유지(기능 연결 전 임시 상태)
 	private String currentInsightText = null;
 
-	public MainFrame(String nickname) {
+	public MainFrame(String nickname, LogService logService) {
 		super("Creati - 메인");
 		this.nickname = nickname;
-
+		this.logService = logService;
 		UITheme.ensureInit();
 
 		this.profileImage = loadImage(DEFAULT_PROFILE_PATH);
@@ -225,7 +228,9 @@ public class MainFrame extends JFrame {
 
 		b1.addActionListener(e -> {
 			menu.setVisible(false);
-			JOptionPane.showMessageDialog(this, "TODO: 새 성장 로그 작성 화면");
+			
+			LogWriteDialog writeDialog = new LogWriteDialog(this, logService);
+	        writeDialog.setVisible(true);
 		});
 
 		b2.addActionListener(e -> {
