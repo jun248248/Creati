@@ -84,8 +84,8 @@ public class UserDao {
             conn.setAutoCommit(false); //트랜잭션 시작
 
             // user 테이블 insert
-            String userSql = "INSERT INTO user " +
-                    "(u_id, u_pw_hash, u_name, u_phone, u_email, u_birth, pf_id) " +
+            String userSql = "INSERT INTO users " +
+                    "(u_id, u_pw_hash, u_name, u_phone, u_email, u_birth, u_platform) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
             userStmt = conn.prepareStatement(userSql);
@@ -111,7 +111,7 @@ public class UserDao {
                 throw new RuntimeException("관심분야는 최대 3개까지 가능합니다.");
             }
 
-            String interestSql = "INSERT INTO user_interest (u_id, interest_id) VALUES (?, ?)";
+            String interestSql = "INSERT INTO user_interest (u_id, i_id) VALUES (?, ?)";
             interestStmt = conn.prepareStatement(interestSql);
 
             for (Long interestId : interestIds) {
@@ -155,7 +155,7 @@ public class UserDao {
         PreparedStatement pstmt = null;
         ResultSet rs = null;
 
-        String sql = "SELECT u_id FROM user WHERE u_id = ?";
+        String sql = "SELECT u_id FROM users WHERE u_id = ?";
 
         try {
             conn = pool.getConnection();
