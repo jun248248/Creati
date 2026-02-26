@@ -1,11 +1,15 @@
 package com.creati.service;
 
+import com.creati.dao.UserDao;
+import com.creati.dto.UserDto;
 import com.creati.model.User;
 
 import java.util.*;
 
 public class AuthService {
 
+	private UserDao userDao = new UserDao();
+	
 	private static final AuthService INSTANCE = new AuthService();
 
 	public static AuthService getInstance() {
@@ -41,13 +45,20 @@ public class AuthService {
 	    return PROFILE_RES[random.nextInt(PROFILE_RES.length)];
 	}
 
-	public User login(String id, String pwd) {
-		if (id == null || pwd == null)
-			return null;
-		User u = users.get(id);
-		if (u == null)
-			return null;
-		return u.getPassword().equals(pwd) ? u : null;
+	public User login(String id, String pw) {
+
+	    UserDto dto = userDao.login(id, pw);
+
+	    if (dto == null) {
+	        return null;
+	    }
+
+	    return new User(
+	            dto.getId(),
+	            pw,                     
+	            dto.getName(),           
+	            null
+	    );
 	}
 
 	public boolean isDuplicateId(String id) {

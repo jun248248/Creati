@@ -55,7 +55,7 @@ public class UserDao {
                     user.setBirth(null);
                 }
 
-                user.setPlatformId(rs.getLong("pf_id"));
+                user.setPlatform(rs.getString("u_platform"));
 
                 return user;
             }
@@ -102,7 +102,7 @@ public class UserDao {
                 userStmt.setNull(6, java.sql.Types.DATE);
             }
 
-            userStmt.setLong(7, user.getPlatformId());
+            userStmt.setString(7, user.getPlatform());
 
             userStmt.executeUpdate();
 

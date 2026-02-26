@@ -250,9 +250,6 @@ public class AuthFrame extends JFrame {
 		// DB
 		AuthService auth = AuthService.getInstance();
 		User user = auth.login(id, pw);
-		//UserDto - User 연결 필요
-		//UserDao userDao = new UserDao();
-		//UserDto loginUser = userDao.login(id, pw);
 
 		if (user == null) {
 			msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");

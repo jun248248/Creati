@@ -12,7 +12,7 @@ public class UserDto {
     private String email;
     private LocalDate birth;
     private LocalDateTime createdAt;
-    private Long platformId;
+    private String platform;
 	public String getId() {
 		return id;
 	}
@@ -55,10 +55,10 @@ public class UserDto {
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
 	}
-	public Long getPlatformId() {
-		return platformId;
+	public String getPlatform() {
+		return platform;
 	}
-	public void setPlatformId(Long platformId) {
-		this.platformId = platformId;
+	public void setPlatform(String platform) {
+		this.platform = platform;
 	}
 }
