@@ -24,9 +24,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class MainFrame extends JFrame {
 	
-    private final LogService logService;
-
-	
 	private static final String ETTI_RES = "/images/etti/etti_default.png";
 	private static final String DEFAULT_PROFILE_RES = "/images/profile/default_profile.png";
 

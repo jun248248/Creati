@@ -17,13 +17,11 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.nio.file.Path;
 
 public class AuthFrame extends JFrame {
 
-	private static final Path VIDEO_PATH = Path.of(
-	    System.getProperty("user.dir"), 
-	    "src", "main", "resources", "videos", "intro.mp4"
-	);
+	private static final String VIDEO_RES = "/videos/intro.mp4";
 
 	private VideoPanel videoPanel;
 
@@ -249,12 +247,16 @@ public class AuthFrame extends JFrame {
 			return;
 		}
 
-		UserDao userDao = new UserDao();
-		UserDto loginUser = userDao.login(id, pw);
+		// DB
+		AuthService auth = AuthService.getInstance();
+		User user = auth.login(id, pw);
+		//UserDto - User 연결 필요
+		//UserDao userDao = new UserDao();
+		//UserDto loginUser = userDao.login(id, pw);
 
-		if (loginUser == null) {
-		    msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
-		    return;
+		if (user == null) {
+			msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
+			return;
 		}
 
 		
