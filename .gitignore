@@ -30,4 +30,6 @@ replay_pid*
 /bin/
 /out/
 /target/
-.DS_Store
+
+# gemini key 
+.env

@@ -6,6 +6,11 @@ import com.creati.ui.main.MainFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 import com.creati.ui.main.AppState;
+import com.creati.dao.UserDao;
+import com.creati.dto.UserDto;
+import com.creati.model.LogRepository;
+import com.creati.model.LogRepositoryImpl;
+import com.creati.service.LogService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -15,7 +20,10 @@ import java.awt.event.WindowEvent;
 
 public class AuthFrame extends JFrame {
 
-	private static final String VIDEO_RES = "/videos/intro.mp4";
+	private static final Path VIDEO_PATH = Path.of(
+	    System.getProperty("user.dir"), 
+	    "src", "main", "resources", "videos", "intro.mp4"
+	);
 
 	private VideoPanel videoPanel;
 
@@ -241,23 +249,22 @@ public class AuthFrame extends JFrame {
 			return;
 		}
 
-		// DB
-		AuthService auth = AuthService.getInstance();
-		User user = auth.login(id, pw);
+		UserDao userDao = new UserDao();
+		UserDto loginUser = userDao.login(id, pw);
 
-		if (user == null) {
-			msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
-			return;
+		if (loginUser == null) {
+		    msgLabel.setText("아이디 또는 비밀번호가 올바르지 않습니다.");
+		    return;
 		}
 
 		
 		if (videoPanel != null)
 			videoPanel.stop();
 		dispose();
-
 		
 		AppState.get().setCurrentUser(user);
 		new MainFrame().setVisible(true);
+
 	}
 
 	private void setFieldSize(JComponent field, Dimension d) {

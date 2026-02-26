@@ -8,6 +8,7 @@ import com.creati.ui.navigation.Navigator;
 import com.creati.ui.navigation.Route;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.service.LogService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -22,6 +23,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 
 public class MainFrame extends JFrame {
+	
+    private final LogService logService;
 
 	
 	private static final String ETTI_RES = "/images/etti/etti_default.png";
@@ -67,6 +70,7 @@ public class MainFrame extends JFrame {
 
 	
 	private String currentInsightText = null;
+
 
 	public MainFrame() {
 		super("Creati - 메인");
