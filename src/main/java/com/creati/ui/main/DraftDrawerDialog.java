@@ -6,15 +6,17 @@ import com.creati.util.UITheme;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * 임시보관함 Drawer (오른쪽에 붙는 JDialog)
- *
- * TODO(DB)  WriteLogView.DraftStore 대신 DB에서 조회하도록 교체
- */
+
 public class DraftDrawerDialog extends JDialog {
+
+	private interface HoverIndexProvider {
+		int getHoverIndex();
+	}
 
 	public interface DraftConsumer {
 		void accept(WriteLogView.Draft d);
@@ -39,7 +41,7 @@ public class DraftDrawerDialog extends JDialog {
 		this.onDelete = onDelete;
 
 		setUndecorated(true);
-		setBackground(new Color(0, 0, 0, 0));
+		setBackground(UITheme.TRANSPARENT);
 
 		setContentPane(buildRoot());
 		setSize(320, owner.getHeight());
@@ -47,12 +49,12 @@ public class DraftDrawerDialog extends JDialog {
 
 	private JComponent buildRoot() {
 		JPanel root = new JPanel(new BorderLayout());
-		root.setBackground(Color.WHITE);
-		root.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(230, 230, 235)));
+		root.setBackground(UITheme.WHITE);
+		root.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, UITheme.RGB_230_230_235));
 
-		// header
+		
 		JPanel head = new JPanel(new BorderLayout());
-		head.setBackground(Color.WHITE);
+		head.setBackground(UITheme.WHITE);
 		head.setBorder(new EmptyBorder(12, 14, 12, 14));
 
 		JLabel t = new JLabel("임시보관함");
@@ -61,7 +63,7 @@ public class DraftDrawerDialog extends JDialog {
 
 		JButton close = new JButton("X");
 		close.setFont(UITheme.BODY_MED);
-		close.setForeground(new Color(120, 120, 130));
+		close.setForeground(UITheme.RGB_120_120_130);
 		close.setBorder(new EmptyBorder(6, 10, 6, 10));
 		close.setFocusPainted(false);
 		close.setContentAreaFilled(false);
@@ -71,12 +73,54 @@ public class DraftDrawerDialog extends JDialog {
 		head.add(t, BorderLayout.WEST);
 		head.add(close, BorderLayout.EAST);
 
-		// list
-		list.setBackground(Color.WHITE);
+		
+		list.setBackground(UITheme.WHITE);
 		list.setFont(UITheme.BODY);
 		list.setFixedCellHeight(72);
-		list.setCellRenderer(new DraftCell());
-		list.setSelectionBackground(new Color(0, 0, 0, 0));
+
+		final int[] hoverIndex = new int[] { -1 };
+		HoverIndexProvider hover = () -> hoverIndex[0];
+		MainUiParts.installHoverTracking(list);
+		list.setCellRenderer(MainUiParts.createRowRenderer((jl, value, index, isSelected, isHover) -> {
+			String title = (value.title == null || value.title.isBlank()) ? "(제목 없음)" : value.title;
+			String meta = (value.updatedAt != null) ? value.updatedAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")) : "";
+			String sub1 = "";
+if (value.field != null && !value.field.isBlank()) sub1 = value.field;
+if (value.category != null && !value.category.isBlank()) sub1 = sub1.isBlank() ? value.category : (sub1 + " · " + value.category);
+if (value.status != null) sub1 = sub1.isBlank() ? value.status.label : (sub1 + " · " + value.status.label);
+String sub2 = "";
+if (value.goalText != null && !value.goalText.isBlank()) sub2 = value.goalText.trim();
+else if (value.painPoint != null && !value.painPoint.isBlank()) sub2 = value.painPoint.trim();
+if (sub2.length() > 48) sub2 = sub2.substring(0, 48) + "…";
+JPanel row = MainUiParts.createLogRowPanel("임시저장", UITheme.chipBgGrey(), UITheme.chipFgGrey(), title, sub1, sub2, meta);
+			MainUiParts.applyRowStateBackground(row, isSelected, isHover);
+			return row;
+		}));
+		list.addMouseMotionListener(new MouseAdapter() {
+			@Override
+			public void mouseMoved(MouseEvent e) {
+				int idx = list.locationToIndex(e.getPoint());
+				if (idx >= 0) {
+					Rectangle r = list.getCellBounds(idx, idx);
+					if (r == null || !r.contains(e.getPoint())) idx = -1;
+				}
+				if (hoverIndex[0] != idx) {
+					hoverIndex[0] = idx;
+					list.repaint();
+				}
+			}
+		});
+		list.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseExited(MouseEvent e) {
+				if (hoverIndex[0] != -1) {
+					hoverIndex[0] = -1;
+					list.repaint();
+				}
+			}
+		});
+
+		list.setSelectionBackground(UITheme.TRANSPARENT);
 		list.setSelectionForeground(UITheme.TEXT);
 		list.setFocusable(false);
 
@@ -84,14 +128,14 @@ public class DraftDrawerDialog extends JDialog {
 		sp.setBorder(BorderFactory.createEmptyBorder());
 		sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-		// footer actions
+		
 		JPanel foot = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
-		foot.setBackground(Color.WHITE);
+		foot.setBackground(UITheme.WHITE);
 		foot.setBorder(new EmptyBorder(0, 12, 8, 12));
 
 		JButton load = ghostButton("불러오기");
 		JButton del = ghostButton("삭제");
-		del.setForeground(new Color(180, 70, 70));
+		del.setForeground(UITheme.RGB_180_70_70);
 
 		load.addActionListener(e -> {
 			WriteLogView.Draft d = list.getSelectedValue();
@@ -126,9 +170,9 @@ public class DraftDrawerDialog extends JDialog {
 		JButton b = new JButton(text);
 		b.setFont(UITheme.BODY_MED);
 		b.setForeground(UITheme.TEXT);
-		b.setBackground(Color.WHITE);
+		b.setBackground(UITheme.WHITE);
 		b.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true), new EmptyBorder(8, 10, 8, 10)));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true), new EmptyBorder(8, 10, 8, 10)));
 		b.setFocusPainted(false);
 		b.setContentAreaFilled(false);
 		b.setOpaque(true);
@@ -138,7 +182,7 @@ public class DraftDrawerDialog extends JDialog {
 
 	public void refresh() {
 		model.clear();
-		List<WriteLogView.Draft> drafts = WriteLogView.DraftStore.list();
+		List<WriteLogView.Draft> drafts = Services.DRAFTS.list();
 		for (WriteLogView.Draft d : drafts)
 			model.addElement(d);
 		if (!model.isEmpty())
@@ -167,18 +211,20 @@ public class DraftDrawerDialog extends JDialog {
 	}
 
 	private static class DraftCell extends JPanel implements ListCellRenderer<WriteLogView.Draft> {
+		private final HoverIndexProvider hover;
 		private final JLabel title = new JLabel();
 		private final JLabel meta = new JLabel();
 
-		DraftCell() {
+		DraftCell(HoverIndexProvider hover) {
 			super(new BorderLayout());
+			this.hover = hover;
 			setOpaque(true);
 			setBorder(new EmptyBorder(10, 12, 10, 12));
 			title.setFont(UITheme.BODY_MED);
 			title.setForeground(UITheme.TEXT);
 
 			meta.setFont(UITheme.CAPTION);
-			meta.setForeground(new Color(130, 130, 140));
+			meta.setForeground(UITheme.RGB_130_130_140);
 
 			JPanel text = new JPanel();
 			text.setOpaque(false);
@@ -202,11 +248,9 @@ public class DraftDrawerDialog extends JDialog {
 			title.setText(t);
 			meta.setText("분야: " + f + " · " + c + " · " + time);
 
-			if (isSelected) {
-				setBackground(new Color(0xEAE6FF));
-			} else {
-				setBackground(Color.WHITE);
-			}
+
+			boolean isHover = (hover != null && hover.getHoverIndex() == index);
+			MainUiParts.applyRowStateBackground(this, isSelected, isHover);
 
 			setBorder(new EmptyBorder(10, 12, 10, 12));
 			return this;

@@ -7,6 +7,7 @@ import com.creati.ui.main.MainUiParts.MiniLineChart;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
+import com.creati.ui.components.RoundedLabel;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -15,14 +16,12 @@ import static com.creati.ui.main.MainUiParts.*;
 import java.awt.*;
 import java.util.function.Supplier;
 
-/**
- * HOME 화면만 담당 - KPI - 나의 성장 상태 - 월간 AI 인사이트
- */
+
 public class MainHomeView extends JPanel {
 
-	private static final Color YELLOW_DARK = new Color(0xFFC107);
-	private static final Color YELLOW_MID = new Color(0xFFD54F);
-	private static final Color YELLOW_SOFT = new Color(0xFFE082);
+	private static final Color YELLOW_DARK = UITheme.YELLOW_500;
+	private static final Color YELLOW_MID = UITheme.YELLOW_300;
+	private static final Color YELLOW_SOFT = UITheme.YELLOW_200;
 
 	private final Supplier<String> insightGetter;
 	private final java.util.function.Consumer<String> insightSetter;
@@ -78,16 +77,16 @@ public class MainHomeView extends JPanel {
 
 	private JComponent kpiCard(String title, String value, String sub, Color accent) {
 		JPanel card = new JPanel(new BorderLayout());
-		card.setBackground(Color.WHITE);
+		card.setBackground(UITheme.WHITE);
 		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true), new EmptyBorder(14, 14, 14, 14)));
+				BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true), new EmptyBorder(14, 14, 14, 14)));
 
 		JPanel top = new JPanel(new BorderLayout());
 		top.setOpaque(false);
 
 		JLabel t = new JLabel(title);
 		t.setFont(UITheme.CAPTION);
-		t.setForeground(new Color(120, 120, 120));
+		t.setForeground(UITheme.RGB_120_120_120);
 
 		JPanel dot = new JPanel();
 		dot.setPreferredSize(new Dimension(10, 10));
@@ -98,12 +97,12 @@ public class MainHomeView extends JPanel {
 		top.add(dot, BorderLayout.EAST);
 
 		JLabel v = new JLabel(value);
-		v.setFont(UITheme.H2 != null ? UITheme.H2.deriveFont(22f) : new Font("Dialog", Font.BOLD, 22));
+		v.setFont(UITheme.H2 != null ? UITheme.H2.deriveFont(22f) : UITheme.H2);
 		v.setForeground(UITheme.TEXT);
 
 		JLabel s = new JLabel(sub);
 		s.setFont(UITheme.CAPTION);
-		s.setForeground(new Color(140, 140, 140));
+		s.setForeground(UITheme.RGB_140_140_140);
 
 		JPanel center = new JPanel();
 		center.setOpaque(false);
@@ -126,21 +125,21 @@ public class MainHomeView extends JPanel {
 		body.setOpaque(false);
 		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-		// 값(임시)
+		
 		String typeChip = "꾸준러형";
 		String typeDesc = "매일매일 쌓는 타입";
 
-		// 설명 멘트
+		
 		JLabel hint = new JLabel("이번 달의 성장 흐름을 한눈에 확인해요.");
 		hint.setFont(UITheme.CAPTION);
-		hint.setForeground(new Color(140, 140, 140));
+		hint.setForeground(UITheme.RGB_140_140_140);
 		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		// 현재 유형 카드
+		
 		JComponent typeCard = buildTypeCard(typeChip, typeDesc);
 		typeCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		// 레이더 그래프
+		
 		String[] axes = { "꾸준함", "도전력", "실행력", "회복력", "성찰력", "소통력" };
 		int[] scores = { 2, 2, 1, 3, 2, 1 };
 		JComponent radar = new MainUiParts.RadarChart(axes, scores);
@@ -159,7 +158,7 @@ public class MainHomeView extends JPanel {
 	private JComponent buildTypeCard(String typeChip, String desc) {
 		JPanel card = new JPanel(new BorderLayout());
 		card.setOpaque(true);
-		card.setBackground(new Color(245, 245, 248));
+		card.setBackground(UITheme.RGB_245_245_248);
 
 		card.setBorder(new EmptyBorder(8, 12, 8, 12));
 
@@ -172,16 +171,16 @@ public class MainHomeView extends JPanel {
 
 		JLabel bar = new JLabel("|");
 		bar.setFont(UITheme.BODY);
-		bar.setForeground(new Color(170, 170, 170));
+		bar.setForeground(UITheme.RGB_170_170_170);
 
-		JLabel chip = new MainUiParts.RoundedLabel(typeChip).arc(18).bg(Color.WHITE).border(new Color(0xCFC9FF));
+		JLabel chip = new RoundedLabel(typeChip).arc(18).bg(UITheme.WHITE).border(UITheme.ACCENT_LAVENDER_BORDER);
 
 		chip.setFont(UITheme.BODY_MED);
 		chip.setForeground(UITheme.ACCENT_PURPLE);
 
 		JLabel descLabel = new JLabel(desc);
 		descLabel.setFont(UITheme.BODY);
-		descLabel.setForeground(new Color(120, 120, 120));
+		descLabel.setForeground(UITheme.RGB_120_120_120);
 
 		row.add(title);
 		row.add(bar);
@@ -198,7 +197,7 @@ public class MainHomeView extends JPanel {
 
 		JLabel key = new JLabel(k);
 		key.setFont(UITheme.CAPTION);
-		key.setForeground(new Color(140, 140, 140));
+		key.setForeground(UITheme.RGB_140_140_140);
 
 		JLabel val = new JLabel(v);
 		val.setFont(UITheme.BODY_MED);
@@ -227,7 +226,7 @@ public class MainHomeView extends JPanel {
 
 		JLabel l = new JLabel(label);
 		l.setFont(UITheme.CAPTION);
-		l.setForeground(new Color(140, 140, 140));
+		l.setForeground(UITheme.RGB_140_140_140);
 
 		JLabel v = new JLabel(value);
 		v.setFont(UITheme.BODY_MED);
@@ -247,7 +246,7 @@ public class MainHomeView extends JPanel {
 
 		JLabel hint = new JLabel("<html><div style='line-height:1.5; text-align:left;'>" + "매달 1회, 이번 달 기록을 요약해 다음 달 집중 포인트를 받아볼 수 있어요." + "</div></html>");
 		hint.setFont(UITheme.CAPTION.deriveFont(12f));
-		hint.setForeground(new Color(120, 120, 120));
+		hint.setForeground(UITheme.RGB_120_120_120);
 		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		JTextArea insightArea = new JTextArea();
@@ -261,7 +260,7 @@ public class MainHomeView extends JPanel {
 
 		JPanel insightBox = new JPanel(new BorderLayout());
 		insightBox.setOpaque(true);
-		insightBox.setBackground(new Color(245, 245, 248));
+		insightBox.setBackground(UITheme.RGB_245_245_248);
 		insightBox.setBorder(new EmptyBorder(12, 12, 12, 12));
 		insightBox.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -283,14 +282,12 @@ public class MainHomeView extends JPanel {
 		genBtn.setFocusPainted(false);
 		genBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		genBtn.setBackground(UITheme.ACCENT_PURPLE);
-		genBtn.setForeground(Color.WHITE);
+		genBtn.setForeground(UITheme.WHITE);
 		genBtn.setBorder(new EmptyBorder(10, 14, 10, 14));
 		genBtn.setFont(UITheme.BODY_MED);
 		genBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		genBtn.addActionListener(e -> {
-			// TODO (기능 연결): 월 1회 생성 제한 체크
-			// TODO (기능 연결): 매월 1일 초기화 로직(서버/DB 연결)
 
 			String text = "이번 달은 기록의 시작은 빠르지만, 중간에 흐름이 끊기는 패턴이 보여요. "
 					+ "특히 ‘시간 부족’과 ‘계획 미흡’이 함께 등장하면서 재도전까지 이어지지 못한 날이 있었어요.\n\n"
@@ -318,7 +315,7 @@ public class MainHomeView extends JPanel {
 		String t = insightGetter.get();
 		if (t == null || t.isBlank()) {
 			area.setText("아직 인사이트가 없어요.\n월간 인사이트 생성 버튼을 눌러 생성해보세요.");
-			area.setForeground(new Color(80, 80, 90));
+			area.setForeground(UITheme.RGB_80_80_90);
 		} else {
 			area.setText(t);
 			area.setForeground(UITheme.TEXT);
@@ -334,13 +331,13 @@ public class MainHomeView extends JPanel {
 	private JComponent pill(String label, String value) {
 		JPanel p = new JPanel(new BorderLayout(10, 0));
 		p.setOpaque(true);
-		p.setBackground(new Color(250, 250, 252));
+		p.setBackground(UITheme.RGB_250_250_252);
 		p.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true), new EmptyBorder(10, 12, 10, 12)));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true), new EmptyBorder(10, 12, 10, 12)));
 
 		JLabel l = new JLabel(label);
 		l.setFont(UITheme.CAPTION);
-		l.setForeground(new Color(120, 120, 120));
+		l.setForeground(UITheme.RGB_120_120_120);
 
 		JLabel v = new JLabel(value);
 		v.setFont(UITheme.BODY_MED);

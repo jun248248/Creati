@@ -6,6 +6,12 @@ import javax.swing.border.EmptyBorder;
 
 import com.creati.util.UITheme;
 
+import com.creati.ui.components.CircleAvatar;
+import com.creati.ui.components.EllipsisButton;
+import com.creati.ui.components.RoundedButton;
+import com.creati.ui.components.RoundedLabel;
+import com.creati.ui.components.ShadowLabel;
+
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BaseMultiResolutionImage;
@@ -14,26 +20,96 @@ import java.awt.image.MultiResolutionImage;
 import java.io.InputStream;
 import java.nio.file.Path;
 
-/**
- * MainFrame에서 길어지는 요소(컴포넌트/차트/이미지유틸)만 모아둔 파일
- */
+
 public class MainUiParts {
 
-	public static final Color LAVENDER_HOVER = new Color(0xEAE6FF);
-	public static final Color LAVENDER_BORDER = new Color(0xCFC9FF);
+	public static final Color LAVENDER_HOVER = UITheme.ACCENT_LAVENDER_BG_2;
+	public static final Color LAVENDER_BORDER = UITheme.ACCENT_LAVENDER_BORDER;
 
-	// =========================
-	// Cards / Charts
-	// =========================
+	
+	
+	
+	public static final Color ROW_BG = UITheme.WHITE;
+	public static final Color ROW_HOVER_BG = UITheme.SURFACE_TINT;
+	public static final Color ROW_SELECTED_BG = UITheme.ACCENT_LAVENDER_BG;
+
+	
+	
+	
+	public static final int TOGGLE_CHIP_RADIUS = 18;
+
+	public static Color toggleChipBg(boolean selected, boolean hover) {
+		if (selected) return UITheme.TOGGLE_CHIP_SELECTED_BG;
+		if (hover) return UITheme.TOGGLE_CHIP_HOVER_BG;
+		return UITheme.TOGGLE_CHIP_BG;
+	}
+
+	public static Color toggleChipBorder(boolean selected, boolean hover) {
+		if (selected) return UITheme.TOGGLE_CHIP_SELECTED_BORDER;
+		return UITheme.TOGGLE_CHIP_BORDER;
+	}
+
+	
+	public static Icon glyphIcon(int codePoint, float size, Color color) {
+		return new GlyphIcon(codePoint, size, color);
+	}
+
+	
+	public static class GlyphIcon implements Icon {
+		private final int codePoint;
+		private final float size;
+		private final Color color;
+
+		public GlyphIcon(int codePoint, float size, Color color) {
+			this.codePoint = codePoint;
+			this.size = size;
+			this.color = color;
+		}
+
+		@Override
+		public int getIconWidth() {
+			return Math.round(size);
+		}
+
+		@Override
+		public int getIconHeight() {
+			return Math.round(size);
+		}
+
+		@Override
+		public void paintIcon(Component c, Graphics g, int x, int y) {
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+			g2.setColor(color);
+			g2.setFont(com.creati.util.FontKit.materialIcon(size));
+			String s = new String(Character.toChars(codePoint));
+			FontMetrics fm = g2.getFontMetrics();
+			int by = y + fm.getAscent();
+			g2.drawString(s, x, by);
+			g2.dispose();
+		}
+	}
+
+	
+	public static void applyRowStateBackground(JComponent c, boolean isSelected, boolean isHover) {
+		if (c == null) return;
+		if (isSelected) c.setBackground(ROW_SELECTED_BG);
+		else if (isHover) c.setBackground(ROW_HOVER_BG);
+		else c.setBackground(ROW_BG);
+	}
+
+	
+	
+	
 
 	public static class HomeCard extends JPanel {
 		private final JPanel bodyWrap;
 
 		public HomeCard(String title) {
 			super(new BorderLayout());
-			setBackground(Color.WHITE);
+			setBackground(UITheme.WHITE);
 			setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true),
 					new EmptyBorder(16, 16, 16, 16)));
 
 			JLabel t = new JLabel(title);
@@ -60,9 +136,9 @@ public class MainUiParts {
 		}
 	}
 
-	// =========================
-	// Resource (classpath) Image Utils
-	// =========================
+	
+	
+	
 	public static BufferedImage loadBufferedResource(String resourcePath) {
 		try (InputStream is = MainUiParts.class.getResourceAsStream(resourcePath)) {
 			if (is == null) {
@@ -81,9 +157,9 @@ public class MainUiParts {
 		return loadBufferedResource(resourcePath);
 	}
 
-	// =========================
-	// Chart Card
-	// =========================
+	
+	
+	
 
 	static class ChartCard extends JPanel {
 		private final JPanel chartHolder = new JPanel(new BorderLayout());
@@ -92,9 +168,9 @@ public class MainUiParts {
 		ChartCard(String title) {
 			super(new BorderLayout());
 			setOpaque(true);
-			setBackground(new Color(250, 250, 252));
+			setBackground(UITheme.RGB_250_250_252);
 			setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(12, 12, 12, 12)));
 
 			JLabel t = new JLabel(title);
@@ -102,7 +178,7 @@ public class MainUiParts {
 			t.setForeground(UITheme.TEXT);
 
 			hint.setFont(UITheme.CAPTION);
-			hint.setForeground(new Color(140, 140, 140));
+			hint.setForeground(UITheme.RGB_140_140_140);
 
 			JPanel header = new JPanel(new BorderLayout(10, 0));
 			header.setOpaque(false);
@@ -146,15 +222,15 @@ public class MainUiParts {
 			int w = getWidth();
 			int h = getHeight();
 
-			g2.setColor(Color.WHITE);
+			g2.setColor(UITheme.WHITE);
 			g2.fillRoundRect(0, 0, w, h, 16, 16);
-			g2.setColor(new Color(230, 230, 238));
+			g2.setColor(UITheme.RGB_230_230_238);
 			g2.drawRoundRect(0, 0, w - 1, h - 1, 16, 16);
 
 			int pad = 14;
 			int gx0 = pad, gy0 = pad, gx1 = w - pad, gy1 = h - pad;
 
-			g2.setColor(new Color(242, 242, 248));
+			g2.setColor(UITheme.RGB_242_242_248);
 			for (int i = 1; i <= 3; i++) {
 				int y = gy0 + (gy1 - gy0) * i / 4;
 				g2.drawLine(gx0, y, gx1, y);
@@ -182,7 +258,7 @@ public class MainUiParts {
 				g2.drawLine(xs[i], ys[i], xs[i + 1], ys[i + 1]);
 			}
 
-			g2.setColor(Color.WHITE);
+			g2.setColor(UITheme.WHITE);
 			for (int i = 0; i < n; i++) {
 				g2.fillOval(xs[i] - 5, ys[i] - 5, 10, 10);
 			}
@@ -215,9 +291,9 @@ public class MainUiParts {
 			int w = getWidth();
 			int h = getHeight();
 
-			g2.setColor(Color.WHITE);
+			g2.setColor(UITheme.WHITE);
 			g2.fillRoundRect(0, 0, w, h, 16, 16);
-			g2.setColor(new Color(230, 230, 238));
+			g2.setColor(UITheme.RGB_230_230_238);
 			g2.drawRoundRect(0, 0, w - 1, h - 1, 16, 16);
 
 			int padX = 14;
@@ -243,11 +319,11 @@ public class MainUiParts {
 				int bh = (int) ((gy1 - gy0) * (v / (double) max));
 				int y = gy1 - bh;
 
-				Color fill = (i % 2 == 0) ? UITheme.ACCENT_PURPLE : new Color(0xCFC9FF);
+				Color fill = (i % 2 == 0) ? UITheme.ACCENT_PURPLE : UITheme.ACCENT_LAVENDER_BORDER;
 				g2.setColor(fill);
 				g2.fillRoundRect(x, y, barW, bh, 10, 10);
 
-				g2.setColor(new Color(120, 120, 120));
+				g2.setColor(UITheme.RGB_120_120_120);
 				g2.setFont(UITheme.CAPTION);
 				String lab = labels[i];
 				int tw = g2.getFontMetrics().stringWidth(lab);
@@ -261,201 +337,20 @@ public class MainUiParts {
 		}
 	}
 
-	// =========================
-	// Small UI parts
-	// =========================
+	
+	
+	
 
-	public static class ShadowLabel extends JLabel {
-		private final int shadowAlpha;
-		private final Color shadowBase;
 
-		public ShadowLabel(String text, int shadowAlpha, Color shadowBase) {
-			super(text);
-			this.shadowAlpha = shadowAlpha;
-			this.shadowBase = shadowBase;
-			setOpaque(false);
-		}
 
-		@Override
-		protected void paintComponent(Graphics g) {
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-			g2.setFont(getFont());
-			FontMetrics fm = g2.getFontMetrics();
-			int x = getInsets().left;
-			int y = getInsets().top + fm.getAscent();
 
-			g2.setColor(new Color(shadowBase.getRed(), shadowBase.getGreen(), shadowBase.getBlue(), shadowAlpha));
-			g2.drawString(getText(), x + 1, y + 1);
+	
+	
+	
 
-			g2.setColor(getForeground());
-			g2.drawString(getText(), x, y);
-
-			g2.dispose();
-		}
-	}
-
-	public static class CircleAvatar extends JComponent {
-		private final int size;
-		private final Image image;
-		private final int pad;
-
-		public CircleAvatar(Image image) {
-			this(image, 34, 3);
-		}
-
-		public CircleAvatar(Image image, int size) {
-			this(image, size, 3);
-		}
-
-		public CircleAvatar(Image image, int size, int pad) {
-			this.size = size;
-			this.pad = pad;
-			this.image = image;
-
-			setPreferredSize(new Dimension(size, size));
-			setMinimumSize(new Dimension(size, size));
-			setMaximumSize(new Dimension(size, size));
-			setOpaque(false);
-		}
-
-		@Override
-		protected void paintComponent(Graphics g) {
-			super.paintComponent(g);
-
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-			g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-			g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-
-			int w = getWidth(), h = getHeight();
-			int d = Math.min(w, h);
-			int x0 = (w - d) / 2;
-			int y0 = (h - d) / 2;
-
-			g2.setColor(new Color(245, 245, 250));
-			g2.fillOval(x0, y0, d, d);
-
-			Shape clip = new Ellipse2D.Float(x0 + 1, y0 + 1, d - 2, d - 2);
-			g2.setClip(clip);
-
-			if (image != null) {
-				double sx = g2.getTransform().getScaleX();
-				double sy = g2.getTransform().getScaleY();
-				double deviceScale = Math.max(sx, sy);
-
-				int needPx = (int) Math.ceil(d * deviceScale);
-
-				BufferedImage src = resolveBestBuffered(image, needPx, needPx);
-				if (src != null) {
-					BufferedImage trimmed = trimTransparent(src);
-
-					int avail = d - pad * 2;
-
-					int iw = trimmed.getWidth();
-					int ih = trimmed.getHeight();
-
-					double s = Math.min((double) avail / iw, (double) avail / ih);
-					int dw = (int) Math.round(iw * s);
-					int dh = (int) Math.round(ih * s);
-
-					int ix = x0 + (d - dw) / 2;
-					int iy = y0 + (d - dh) / 2;
-
-					g2.drawImage(trimmed, ix, iy, dw, dh, null);
-				}
-			}
-
-			g2.setClip(null);
-
-			g2.setColor(new Color(220, 220, 232));
-			g2.drawOval(x0, y0, d - 1, d - 1);
-
-			g2.dispose();
-		}
-
-		private static BufferedImage resolveBestBuffered(Image img, int targetW, int targetH) {
-			try {
-				if (img instanceof MultiResolutionImage mri) {
-					Image variant = mri.getResolutionVariant(targetW, targetH);
-					return toBufferedImage(variant);
-				}
-				return toBufferedImage(img);
-			} catch (Exception e) {
-				return null;
-			}
-		}
-
-		private static BufferedImage toBufferedImage(Image img) {
-			if (img == null) return null;
-			if (img instanceof BufferedImage bi) return bi;
-
-			int w = img.getWidth(null);
-			int h = img.getHeight(null);
-
-			if (w <= 0 || h <= 0) {
-				ImageIcon icon = new ImageIcon(img);
-				w = icon.getIconWidth();
-				h = icon.getIconHeight();
-				img = icon.getImage();
-			}
-			if (w <= 0 || h <= 0) return null;
-
-			BufferedImage bi = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-			Graphics2D g2 = bi.createGraphics();
-			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-			g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-			g2.drawImage(img, 0, 0, null);
-			g2.dispose();
-			return bi;
-		}
-	}
-
-	public static class RoundedButton extends JButton {
-		private final int arc = 18;
-
-		public RoundedButton(String text) {
-			super(text);
-			setFocusPainted(false);
-			setContentAreaFilled(false);
-			setBorder(new EmptyBorder(10, 14, 10, 14));
-			setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		}
-
-		@Override
-		protected void paintComponent(Graphics g) {
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-			g2.setColor(getBackground());
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
-
-			super.paintComponent(g2);
-			g2.dispose();
-		}
-	}
-
-	public static class EllipsisButton extends JButton {
-		public EllipsisButton() {
-			super("● ● ●");
-			setFocusPainted(false);
-			setContentAreaFilled(false);
-			setBorderPainted(false);
-			setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-			setForeground(new Color(100, 100, 110));
-			setFont(new Font("Dialog", Font.BOLD, 14));
-			setPreferredSize(new Dimension(52, 32));
-			setHorizontalAlignment(SwingConstants.CENTER);
-		}
-	}
-
-	// =========================
-	// Image Utils (File / Resource)
-	// =========================
-
-	public static Icon createHiDPIIcon(Path srcPath, int logicalSizePx, boolean trim) {
+	
+	private static Icon createHiDPIIcon(Path srcPath, int logicalSizePx, boolean trim) {
 		BufferedImage src = loadBuffered(srcPath);
 		if (src == null)
 			return null;
@@ -503,7 +398,8 @@ public class MainUiParts {
 		return dst;
 	}
 
-	public static BufferedImage loadBuffered(Path path) {
+	
+	private static BufferedImage loadBuffered(Path path) {
 		try {
 			java.io.File f = path.toFile();
 			if (!f.exists())
@@ -514,7 +410,8 @@ public class MainUiParts {
 		}
 	}
 
-	public static Image loadImage(Path path) {
+	
+	private static Image loadImage(Path path) {
 		return loadBuffered(path);
 	}
 
@@ -553,9 +450,9 @@ public class MainUiParts {
 		c.setMinimumSize(new Dimension(10, h));
 	}
 
-	// =========================
-	// Radar Chart (Hexagon)
-	// =========================
+	
+	
+	
 	public static class RadarChart extends JComponent {
 		private final String[] axes;
 		private final int[] scores;
@@ -581,13 +478,13 @@ public class MainUiParts {
 			int cy = h / 2 - 6;
 			int r = Math.min(w, h) / 2 - pad - 18;
 
-			g2.setColor(new Color(235, 235, 242));
+			g2.setColor(UITheme.RGB_235_235_242);
 			for (int level = 1; level <= 3; level++) {
 				double rr = r * (level / 3.0);
 				drawPolygon(g2, cx, cy, rr, axes.length);
 			}
 
-			g2.setColor(new Color(228, 228, 238));
+			g2.setColor(UITheme.RGB_228_228_238);
 			for (int i = 0; i < axes.length; i++) {
 				double ang = -Math.PI / 2 + i * (2 * Math.PI / axes.length);
 				int x = (int) (cx + r * Math.cos(ang));
@@ -604,15 +501,15 @@ public class MainUiParts {
 				poly.addPoint(x, y);
 			}
 
-			g2.setColor(new Color(0xCF, 0xC9, 0xFF, 140));
+			g2.setColor(UITheme.RGBA_207_201_255_140);
 			g2.fillPolygon(poly);
 
-			g2.setColor(new Color(0xCFC9FF));
+			g2.setColor(UITheme.ACCENT_LAVENDER_BORDER);
 			g2.setStroke(new BasicStroke(1.2f));
 			g2.drawPolygon(poly);
 
 			g2.setFont(UITheme.CAPTION);
-			g2.setColor(new Color(110, 110, 110));
+			g2.setColor(UITheme.RGB_110_110_110);
 			for (int i = 0; i < axes.length; i++) {
 				double ang = -Math.PI / 2 + i * (2 * Math.PI / axes.length);
 				int x = (int) (cx + (r + 12) * Math.cos(ang));
@@ -665,52 +562,6 @@ public class MainUiParts {
 		}
 	}
 
-	public static class RoundedLabel extends JLabel {
-		private int arc = 16;
-		private Color bg = Color.WHITE;
-		private Color border = null;
-
-		public RoundedLabel(String text) {
-			super(text);
-			setOpaque(false);
-			setBorder(new EmptyBorder(5, 10, 5, 10));
-		}
-
-		public RoundedLabel arc(int arc) {
-			this.arc = arc;
-			return this;
-		}
-
-		public RoundedLabel bg(Color bg) {
-			this.bg = bg;
-			return this;
-		}
-
-		public RoundedLabel border(Color border) {
-			this.border = border;
-			return this;
-		}
-
-		@Override
-		protected void paintComponent(Graphics g) {
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-			int w = getWidth();
-			int h = getHeight();
-
-			g2.setColor(bg);
-			g2.fillRoundRect(0, 0, w, h, arc, arc);
-
-			if (border != null) {
-				g2.setColor(border);
-				g2.drawRoundRect(0, 0, w - 1, h - 1, arc, arc);
-			}
-
-			g2.dispose();
-			super.paintComponent(g);
-		}
-	}
 
 	public static Image loadHiDPIAvatar(String resPath, int logicalSizePx) {
 		BufferedImage src = loadBufferedResource(resPath);
@@ -723,4 +574,182 @@ public class MainUiParts {
 		return new BaseMultiResolutionImage(img1x, img2x);
 	}
 
+
+	
+	
+	
+	public static JPanel createCard(int padding) {
+		return createCard(padding, true);
+	}
+
+	
+	public static JPanel createCard(int padding, boolean lockHeightToPreferred) {
+		JPanel card = new JPanel() {
+			@Override
+			public void addNotify() {
+				super.addNotify();
+				if (!lockHeightToPreferred) return;
+				SwingUtilities.invokeLater(() -> {
+					int h = getPreferredSize().height;
+					if (h > 0) setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
+				});
+			}
+		};
+		card.setOpaque(true);
+		card.setBackground(UITheme.SURFACE);
+		card.setAlignmentX(Component.LEFT_ALIGNMENT);
+		card.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.SURFACE_BORDER, 1, true),
+				new EmptyBorder(padding, padding, padding, padding)
+		));
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+		return card;
+	}
+
+	public static JPanel createCardWithTitle(String title, int padding, JComponent body) {
+		JPanel card = createCard(padding, true);
+		card.setLayout(new BorderLayout());
+		ShadowLabel t = textLabel(title, UITheme.TITLE_SM, UITheme.TEXT);
+		t.setBorder(new EmptyBorder(0, 0, 10, 0));
+		card.add(t, BorderLayout.NORTH);
+		card.add(body, BorderLayout.CENTER);
+		return card;
+	}
+
+	
+	private static ShadowLabel textLabel(String text, Font font, Color fg) {
+		ShadowLabel l = new ShadowLabel(text, 0, fg);
+		l.setFont(font);
+		l.setForeground(fg);
+		return l;
+	}
+
+	
+	
+	
+	private static final String CLIENTPROP_HOVER_INDEX = "creati.hoverIndex";
+
+	public static void installHoverTracking(JList<?> list) {
+		list.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+			@Override public void mouseMoved(java.awt.event.MouseEvent e) {
+				int idx = list.locationToIndex(e.getPoint());
+				Object old = list.getClientProperty(CLIENTPROP_HOVER_INDEX);
+				Integer oldI = (old instanceof Integer) ? (Integer) old : -1;
+				if (idx != oldI) {
+					list.putClientProperty(CLIENTPROP_HOVER_INDEX, idx);
+					list.repaint();
+				}
+			}
+		});
+		list.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override public void mouseExited(java.awt.event.MouseEvent e) {
+				Object old = list.getClientProperty(CLIENTPROP_HOVER_INDEX);
+				Integer oldI = (old instanceof Integer) ? (Integer) old : -1;
+				if (oldI != -1) {
+					list.putClientProperty(CLIENTPROP_HOVER_INDEX, -1);
+					list.repaint();
+				}
+			}
+		});
+		list.putClientProperty(CLIENTPROP_HOVER_INDEX, -1);
+	}
+
+	public static int getHoverIndex(JList<?> list) {
+		Object v = list.getClientProperty(CLIENTPROP_HOVER_INDEX);
+		return (v instanceof Integer) ? (Integer) v : -1;
+	}
+
+	@FunctionalInterface
+	public interface RowBuilder<T> {
+		Component build(JList<? extends T> list, T value, int index, boolean isSelected, boolean isHover);
+	}
+
+	public static <T> ListCellRenderer<? super T> createRowRenderer(RowBuilder<T> builder) {
+		return (list, value, index, isSelected, cellHasFocus) -> {
+			boolean isHover = (getHoverIndex(list) == index);
+			Component c = builder.build(list, value, index, isSelected, isHover);
+			
+			if (c instanceof JComponent jc) {
+				applyRowStateBackground(jc, isSelected, isHover);
+			}
+			return c;
+		};
+	}
+
+	public static <T> ListCellRenderer<? super T> createLabelRowRenderer(
+			java.util.function.Function<T, String> textFn,
+			java.util.function.Function<T, Icon> iconFn,
+			int padTop, int padLeft, int padBottom, int padRight
+	) {
+		DefaultListCellRenderer base = new DefaultListCellRenderer();
+		base.setOpaque(true);
+		return (list, value, index, isSelected, cellHasFocus) -> {
+			JLabel c = (JLabel) base.getListCellRendererComponent(list, value, index, isSelected, false);
+			c.setText(textFn.apply((T) value));
+			c.setFont(UITheme.BODY);
+			c.setForeground(UITheme.TEXT);
+			c.setBorder(new EmptyBorder(padTop, padLeft, padBottom, padRight));
+			Icon ic = (iconFn == null) ? null : iconFn.apply((T) value);
+			c.setIcon(ic);
+			if (ic != null) c.setIconTextGap(12);
+			boolean isHover = (getHoverIndex(list) == index);
+			applyRowStateBackground(c, isSelected, isHover);
+			return c;
+		};
+	}
+
+	public static JPanel createRowPanel(int padTop, int padLeft, int padBottom, int padRight) {
+		JPanel p = new JPanel(new BorderLayout());
+		p.setOpaque(true);
+		p.setBorder(new EmptyBorder(padTop, padLeft, padBottom, padRight));
+		return p;
+	}
+
+	public static JPanel createLogRowPanel(
+	        String chipText,
+	        Color chipBg,
+	        Color chipFg,
+	        String title,
+	        String sub1,
+	        String sub2,
+	        String metaRight
+	) {
+	    JPanel p = createRowPanel(10, 12, 10, 12);
+	    p.setLayout(new BorderLayout(12, 0));
+
+	    JPanel left = new JPanel(new BorderLayout(10, 0));
+	    left.setOpaque(false);
+
+	    if (chipText != null && !chipText.isBlank()) {
+	        com.creati.ui.components.Chip chip = new com.creati.ui.components.Chip();
+	        chip.setChip(chipText, chipBg, chipFg);
+	        JPanel chipWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+	        chipWrap.setOpaque(false);
+	        chipWrap.add(chip);
+	        left.add(chipWrap, BorderLayout.WEST);
+	    }
+
+	    ShadowLabel t = textLabel(
+	            (title == null ? "" : title),
+	            UITheme.BODY_MED,
+	            UITheme.TEXT
+	    );
+	    t.setBorder(null);
+	    t.setHorizontalAlignment(SwingConstants.LEFT);
+	    left.add(t, BorderLayout.CENTER);
+
+	    p.add(left, BorderLayout.CENTER);
+
+	    if (metaRight != null && !metaRight.isBlank()) {
+	        ShadowLabel meta = textLabel(metaRight, UITheme.BODY_SM, UITheme.MUTED_TEXT);
+	        meta.setHorizontalAlignment(SwingConstants.RIGHT);
+	        p.add(meta, BorderLayout.EAST);
+	    }
+
+	    return p;
+	}
+
+public static JPanel createLogRowPanel(String chipText, Color chipBg, Color chipFg, String title, String metaRight) {
+	return createLogRowPanel(chipText, chipBg, chipFg, title, null, null, metaRight);
+}
 }

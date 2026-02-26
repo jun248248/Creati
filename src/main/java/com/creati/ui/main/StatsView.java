@@ -8,24 +8,13 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.Arrays;
 
-/**
- * 통계 탭 화면
- * - 상단 요약(이번 주 상태/유형/강점/보완)
- * - 육각형 레이더 그래프(6축)
- * - 실행 제안(체크 아이콘: Material Icons 폰트 사용)
- *
- * TODO(DB 연결 후):
- *  - scores(6축) 계산 로직 연결
- *  - 유형(type) 자동 산정(Top1 기준)
- *  - 강점/보완 TOP1 자동 추출
- */
+
 public class StatsView extends JPanel {
 
-    // 6축 라벨
+    
     private static final String[] AXES = {"꾸준함", "도전력", "실행력", "회복력", "성찰력", "소통력"};
 
-    // 임시 점수(1~3): 하/중/상
-    // TODO (DB 연결) 실제로는 최근 7일/30일 기준으로 계산해서 주입
+    // DB scores
     private int[] scores = {2, 2, 1, 3, 2, 1};
 
     private JLabel weekStateLabel;
@@ -55,9 +44,9 @@ public class StatsView extends JPanel {
 
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(Color.WHITE);
+        card.setBackground(UITheme.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true),
+                BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true),
                 new EmptyBorder(14, 16, 14, 16)
         ));
 
@@ -67,7 +56,7 @@ public class StatsView extends JPanel {
 
         typeLabel = new JLabel();
         typeLabel.setFont(UITheme.CAPTION);
-        typeLabel.setForeground(new Color(120, 120, 120));
+        typeLabel.setForeground(UITheme.RGB_120_120_120);
 
         JPanel row = new JPanel(new GridLayout(1, 2, 12, 0));
         row.setOpaque(false);
@@ -86,7 +75,7 @@ public class StatsView extends JPanel {
 
         wrap.add(card, BorderLayout.CENTER);
 
-        // 초기 값 세팅
+        
         refreshSummary();
 
         return wrap;
@@ -95,9 +84,9 @@ public class StatsView extends JPanel {
     private JLabel pillLabel(String title, String value) {
         JLabel l = new JLabel(title + " : " + value);
         l.setFont(UITheme.CAPTION);
-        l.setForeground(new Color(110, 110, 110));
+        l.setForeground(UITheme.RGB_110_110_110);
         l.setOpaque(true);
-        l.setBackground(new Color(245, 245, 248));
+        l.setBackground(UITheme.RGB_245_245_248);
         l.setBorder(new EmptyBorder(10, 12, 10, 12));
         return l;
     }
@@ -106,10 +95,10 @@ public class StatsView extends JPanel {
         JPanel body = new JPanel(new GridLayout(1, 2, 16, 0));
         body.setOpaque(false);
 
-        // 왼쪽: 레이더 그래프 카드
+        
         body.add(buildRadarCard());
 
-        // 오른쪽: 실행 제안 카드
+        
         body.add(buildActionCard());
 
         return body;
@@ -117,9 +106,9 @@ public class StatsView extends JPanel {
 
     private JComponent buildRadarCard() {
         JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(Color.WHITE);
+        card.setBackground(UITheme.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true),
+                BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true),
                 new EmptyBorder(14, 14, 14, 14)
         ));
 
@@ -129,7 +118,7 @@ public class StatsView extends JPanel {
 
         JLabel hint = new JLabel("하/중/상(1~3단계) 기준으로 이번 주 상태를 보여줘요.");
         hint.setFont(UITheme.CAPTION);
-        hint.setForeground(new Color(140, 140, 140));
+        hint.setForeground(UITheme.RGB_140_140_140);
 
         JPanel head = new JPanel();
         head.setOpaque(false);
@@ -148,9 +137,9 @@ public class StatsView extends JPanel {
 
     private JComponent buildActionCard() {
         JPanel card = new JPanel();
-        card.setBackground(Color.WHITE);
+        card.setBackground(UITheme.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true),
+                BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true),
                 new EmptyBorder(14, 14, 14, 14)
         ));
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -161,14 +150,14 @@ public class StatsView extends JPanel {
 
         JLabel hint = new JLabel("통계는 평가가 아니라, 다음 행동을 돕기 위한 피드백이에요.");
         hint.setFont(UITheme.CAPTION);
-        hint.setForeground(new Color(140, 140, 140));
+        hint.setForeground(UITheme.RGB_140_140_140);
 
         card.add(title);
         card.add(Box.createVerticalStrut(4));
         card.add(hint);
         card.add(Box.createVerticalStrut(12));
 
-        // 체크 아이콘 + 문장 (Material Icons 폰트 사용)
+        
         card.add(checkItem("작게 시작해서 완수 경험 만들기"));
         card.add(Box.createVerticalStrut(8));
         card.add(checkItem("실패 로그를 3줄 회고로 정리하기"));
@@ -186,7 +175,7 @@ public class StatsView extends JPanel {
         JLabel icon = new JLabel();
         icon.setFont(FontKit.materialIcon(18f));
         icon.setForeground(UITheme.ACCENT_PURPLE);
-        icon.setText(new String(Character.toChars(0xE86C))); // check_circle
+        icon.setText(new String(Character.toChars(0xE86C))); 
 
         JLabel label = new JLabel(text);
         label.setFont(UITheme.BODY);
@@ -197,9 +186,9 @@ public class StatsView extends JPanel {
         return row;
     }
 
-    // Summary 계산(임시)
+    
     private void refreshSummary() {
-        // Top1 / Bottom1 추출 (동점은 첫 번째)
+        
         int maxIdx = 0, minIdx = 0;
         for (int i = 1; i < scores.length; i++) {
             if (scores[i] > scores[maxIdx]) maxIdx = i;
@@ -211,7 +200,7 @@ public class StatsView extends JPanel {
 
         String type = getTypeByTopAxis(strength);
 
-        // 이번 주 상태(단순 평균 기반)
+        
         double avg = Arrays.stream(scores).average().orElse(2.0);
         String level = (avg < 1.7) ? "하" : (avg < 2.4) ? "중" : "상";
 
@@ -234,10 +223,10 @@ public class StatsView extends JPanel {
         };
     }
 
-    // Radar Chart Component
+    
     static class RadarChart extends JComponent {
         private final String[] axes;
-        private final int[] scores; // 1~3
+        private final int[] scores; 
         RadarChart(String[] axes, int[] scores) {
             this.axes = axes;
             this.scores = scores;
@@ -259,15 +248,15 @@ public class StatsView extends JPanel {
             int cy = h / 2 + 6;
             int r = Math.min(w, h) / 2 - pad;
 
-            // 3단계 그리드(하/중/상)
-            g2.setColor(new Color(235, 235, 242));
+            
+            g2.setColor(UITheme.RGB_235_235_242);
             for (int level = 1; level <= 3; level++) {
                 double rr = r * (level / 3.0);
                 drawPolygon(g2, cx, cy, rr, axes.length);
             }
 
-            // 축 선
-            g2.setColor(new Color(228, 228, 238));
+            
+            g2.setColor(UITheme.RGB_228_228_238);
             for (int i = 0; i < axes.length; i++) {
                 double ang = -Math.PI / 2 + i * (2 * Math.PI / axes.length);
                 int x = (int) (cx + r * Math.cos(ang));
@@ -275,7 +264,7 @@ public class StatsView extends JPanel {
                 g2.drawLine(cx, cy, x, y);
             }
 
-            // 데이터 폴리곤
+            
             Polygon poly = new Polygon();
             for (int i = 0; i < axes.length; i++) {
                 double ang = -Math.PI / 2 + i * (2 * Math.PI / axes.length);
@@ -285,16 +274,16 @@ public class StatsView extends JPanel {
                 poly.addPoint(x, y);
             }
 
-            // 채우기 + 테두리
-            g2.setColor(new Color(0xEAE6FF));
+            
+            g2.setColor(UITheme.ACCENT_LAVENDER_BG_2);
             g2.fillPolygon(poly);
             g2.setColor(UITheme.ACCENT_PURPLE);
             g2.setStroke(new BasicStroke(2f));
             g2.drawPolygon(poly);
 
-            // 라벨
+            
             g2.setFont(UITheme.CAPTION);
-            g2.setColor(new Color(110, 110, 110));
+            g2.setColor(UITheme.RGB_110_110_110);
             for (int i = 0; i < axes.length; i++) {
                 double ang = -Math.PI / 2 + i * (2 * Math.PI / axes.length);
                 int x = (int) (cx + (r + 16) * Math.cos(ang));

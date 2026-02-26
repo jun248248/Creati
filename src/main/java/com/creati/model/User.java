@@ -4,7 +4,7 @@ public class User {
     private final String id;
     private final String password;
     private final String nickname;
-    private final String profileResPath; // 예: "/images/profile/profile_red.png"
+    private final String profileResPath; 
 
     public User(String id, String password, String nickname, String profileResPath) {
         this.id = id;

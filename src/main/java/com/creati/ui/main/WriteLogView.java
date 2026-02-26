@@ -1,6 +1,7 @@
 package com.creati.ui.main;
 
 import com.creati.model.LogStatus;
+import com.creati.ui.components.ToggleChipGroup;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
@@ -17,11 +18,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import static com.creati.ui.main.MainUiParts.RoundedButton;
+import com.creati.ui.components.RoundedButton;
 
-/**
- * WriteLogView - "새 성장 로그 작성" 화면
- */
+import com.creati.model.LogPost;
+
 public class WriteLogView extends JPanel {
 
 	private static final int META_COMBO_W = 260;
@@ -60,38 +60,6 @@ public class WriteLogView extends JPanel {
 		public LocalDateTime updatedAt = LocalDateTime.now();
 	}
 
-	public static class DraftStore {
-		private static final List<Draft> drafts = new ArrayList<>();
-
-		public static synchronized List<Draft> list() {
-			return new ArrayList<>(drafts);
-		}
-
-		public static synchronized Draft upsert(Draft d) {
-			if (d.id == null || d.id.isBlank()) {
-				d.id = "draft_" + System.currentTimeMillis();
-				drafts.add(d);
-			} else {
-				int idx = -1;
-				for (int i = 0; i < drafts.size(); i++) {
-					if (Objects.equals(drafts.get(i).id, d.id)) {
-						idx = i;
-						break;
-					}
-				}
-				if (idx >= 0)
-					drafts.set(idx, d);
-				else
-					drafts.add(d);
-			}
-			d.updatedAt = LocalDateTime.now();
-			return d;
-		}
-
-		public static synchronized void delete(String id) {
-			drafts.removeIf(x -> Objects.equals(x.id, id));
-		}
-	}
 
 	private Draft current = new Draft();
 	private final Runnable onBack;
@@ -102,11 +70,16 @@ public class WriteLogView extends JPanel {
 	private DraftDrawerDialog drawer;
 	private boolean dirty = false;
 
+	private final WriteLogController controller;
+
 	private final PlaceholderTextField titleField = new PlaceholderTextField("제목을 입력해 주세요.");
 
-	private final ChipGroup fieldChips = new ChipGroup(new ChipGroup.Item[] { new ChipGroup.Item("영상", 0xE04B),
-			new ChipGroup.Item("이미지", 0xE3F4), new ChipGroup.Item("글", 0xE3C9), new ChipGroup.Item("음악", 0xE405),
-			new ChipGroup.Item("기타", 0xE5D3) });
+	private final ToggleChipGroup fieldChips = new ToggleChipGroup(new ToggleChipGroup.Item[] {
+			new ToggleChipGroup.Item("영상", 0xE04B),
+			new ToggleChipGroup.Item("이미지", 0xE3F4),
+			new ToggleChipGroup.Item("글", 0xE3C9),
+			new ToggleChipGroup.Item("음악", 0xE405),
+			new ToggleChipGroup.Item("기타", 0xE5D3) });
 	private final PlaceholderTextField customField = new PlaceholderTextField("예: 뉴스레터");
 	private final JComboBox<String> categoryCombo = new JComboBox<>(
 			new String[] { "일상 / 브이로그", "공부 / 자기계발 / 교육", "생산성 / 루틴 / 습관", "개발 / IT / 프로젝트", "리뷰 / 정보 / 추천", "취미 / 관심사",
@@ -115,14 +88,19 @@ public class WriteLogView extends JPanel {
 	private final JRadioButton privateBtn = new JRadioButton("비공개");
 	private final JRadioButton publicBtn = new JRadioButton("공개");
 
+	private JLabel topTitleLabel;
+	private JButton draftsBtn;
+	private JButton draftSaveBtn;
+	private ToggleChipGroup visibilityChips;
+
 	private final PlaceholderTextField linkField = new PlaceholderTextField("참고 링크를 붙여넣어 주세요 (선택)");
 	private final PlaceholderTextField linkFocusField = new PlaceholderTextField("링크에서 특히 확인하고 싶은 부분이 있다면? (선택)");
-	private JPanel linkFocusWrapper; // CardLayout으로 빈 슬롯 ↔ linkFocusField 전환
+	private JPanel linkFocusWrapper; 
 
 	private final PlaceholderTextArea goalArea = new PlaceholderTextArea("예: 업로드 후 조회수 1,000 달성 / 편집 흐름 매끄럽게 만들기");
-	private final ChipGroup moodChips = new ChipGroup(
-			new ChipGroup.Item[] { new ChipGroup.Item("만족해요", 0xE815), new ChipGroup.Item("괜찮아요", 0xE813),
-					new ChipGroup.Item("조금 아쉬워요", 0xE812), new ChipGroup.Item("많이 아쉬워요", 0xE814) });
+	private final ToggleChipGroup moodChips = new ToggleChipGroup(
+			new ToggleChipGroup.Item[] { new ToggleChipGroup.Item("만족해요", 0xE815), new ToggleChipGroup.Item("괜찮아요", 0xE813),
+					new ToggleChipGroup.Item("조금 아쉬워요", 0xE812), new ToggleChipGroup.Item("많이 아쉬워요", 0xE814) });
 
 	private final JCheckBox[] goodPointChecks = new JCheckBox[] { new JCheckBox("계획 / 방향 설정"),
 			new JCheckBox("작업 과정 / 루틴"), new JCheckBox("결과물 완성도"), new JCheckBox("시간 활용"), new JCheckBox("반응 / 성과"),
@@ -137,8 +115,10 @@ public class WriteLogView extends JPanel {
 
 	private final PlaceholderTextArea processArea = new PlaceholderTextArea(
 			"예: 기획 → 촬영 → 컷 편집 → 자막 → BGM → 업로드 순서로 진행했어");
-	private final ChipGroup planGapChips = new ChipGroup(new ChipGroup.Item[] { new ChipGroup.Item("거의 비슷해요", 0xE812),
-			new ChipGroup.Item("일부 달라요", 0xE811), new ChipGroup.Item("많이 달라요", 0xE814) });
+	private final ToggleChipGroup planGapChips = new ToggleChipGroup(new ToggleChipGroup.Item[] {
+			new ToggleChipGroup.Item("거의 비슷해요", 0xE812),
+			new ToggleChipGroup.Item("일부 달라요", 0xE811),
+			new ToggleChipGroup.Item("많이 달라요", 0xE814) });
 	private final PlaceholderTextArea planGapArea = new PlaceholderTextArea("예: 촬영 시간이 늘어나서 편집을 급하게 했어");
 
 	private final PlaceholderTextArea learningArea = new PlaceholderTextArea("예: 다음엔 훅(인트로)을 먼저 잡고 시작하자");
@@ -146,9 +126,11 @@ public class WriteLogView extends JPanel {
 			new JCheckBox("시간 활용"), new JCheckBox("집중 환경"), new JCheckBox("전략 / 방향"), new JCheckBox("기타") };
 	private final PlaceholderTextField nextAdjustOtherField = new PlaceholderTextField("직접 입력");
 
-	private final ChipGroup nextPlanChips = new ChipGroup(new ChipGroup.Item[] {
-			new ChipGroup.Item("바로 다시 시도해볼래요", 0xE815), new ChipGroup.Item("조금 보완 후 진행하고 싶어요", 0xE813),
-			new ChipGroup.Item("고민 중이에요", 0xE811), new ChipGroup.Item("잠시 쉬어갈 계획이에요", 0xE813) });
+	private final ToggleChipGroup nextPlanChips = new ToggleChipGroup(new ToggleChipGroup.Item[] {
+			new ToggleChipGroup.Item("바로 다시 시도해볼래요", 0xE815),
+			new ToggleChipGroup.Item("조금 보완 후 진행하고 싶어요", 0xE813),
+			new ToggleChipGroup.Item("고민 중이에요", 0xE811),
+			new ToggleChipGroup.Item("잠시 쉬어갈 계획이에요", 0xE813) });
 	private final PlaceholderTextArea retryConditionArea = new PlaceholderTextArea("예: 대본을 먼저 완성하고 편집을 시작하기");
 	private final JLabel retryConditionTitle = new JLabel();
 
@@ -166,6 +148,7 @@ public class WriteLogView extends JPanel {
 		FontKit.init();
 		this.onBack = onBack;
 		this.onRegistered = onRegistered;
+		this.controller = new WriteLogController(this);
 		setLayout(new BorderLayout());
 		setBackground(UITheme.BG);
 		add(buildTopBar(owner), BorderLayout.NORTH);
@@ -180,15 +163,30 @@ public class WriteLogView extends JPanel {
 		return dirty;
 	}
 
+
+	void clearDirty() {
+		dirty = false;
+	}
+
+	void refreshDraftDrawerIfOpen() {
+		if (drawer != null && drawer.isVisible()) drawer.refresh();
+	}
 	public boolean confirmLeave() {
 		if (!dirty)
 			return true;
-		int res = JOptionPane.showConfirmDialog(this, "작성 중인 내용이 있어요. 임시 저장 후 나갈까요?", "나가기",
-				JOptionPane.YES_NO_CANCEL_OPTION);
+
+		String msg = editMode ? "변경사항이 있어요. 저장 후 나갈까요?" : "작성 중인 내용이 있어요. 임시 저장 후 나갈까요?";
+
+		int res = JOptionPane.showConfirmDialog(this, msg, "나가기", JOptionPane.YES_NO_CANCEL_OPTION);
 		if (res == JOptionPane.CANCEL_OPTION)
 			return false;
-		if (res == JOptionPane.YES_OPTION)
-			doDraftSave(false);
+
+		if (res == JOptionPane.YES_OPTION) {
+			if (editMode)
+				onSubmit(); 
+			else
+				doDraftSave(false); 
+		}
 		return true;
 	}
 
@@ -196,6 +194,14 @@ public class WriteLogView extends JPanel {
 		editMode = false;
 		onEditSaved = null;
 		current = new Draft();
+
+		if (topTitleLabel != null)
+			topTitleLabel.setText("새 성장 로그 작성");
+		if (draftsBtn != null)
+			draftsBtn.setVisible(true);
+		if (draftSaveBtn != null)
+			draftSaveBtn.setVisible(true);
+
 		resetFormToDefault();
 		rebuildWizardFlow();
 		showStep(0);
@@ -210,8 +216,12 @@ public class WriteLogView extends JPanel {
 		categoryCombo.setSelectedIndex(0);
 		if (statusCombo != null)
 			statusCombo.setSelectedItem(LogStatus.IN_PROGRESS);
+
+		if (visibilityChips != null)
+			visibilityChips.selectByText("비공개");
 		privateBtn.setSelected(true);
 		publicBtn.setSelected(false);
+
 		linkField.setTextOrPlaceholder("");
 		linkFocusField.setTextOrPlaceholder("");
 		toggleLinkFocusVisibility();
@@ -241,15 +251,13 @@ public class WriteLogView extends JPanel {
 
 	private JComponent buildTopBar(JFrame owner) {
 		JPanel bar = new JPanel(new BorderLayout());
-		bar.setBackground(Color.WHITE);
+		bar.setBackground(UITheme.WHITE);
 		bar.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 235)),
+				BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.RGB_230_230_235),
 				new EmptyBorder(12, 16, 12, 16)));
 
 		JButton back = iconButton(0xE5C4, "나가기");
 		back.addActionListener(e -> {
-			if (!confirmLeave())
-				return;
 			if (this.onBack != null)
 				this.onBack.run();
 		});
@@ -257,38 +265,38 @@ public class WriteLogView extends JPanel {
 		left.setOpaque(false);
 		left.add(back);
 
-		JLabel title = new JLabel("새 성장 로그 작성");
-		title.setFont(UITheme.BODY_MED);
-		title.setForeground(UITheme.TEXT);
+		topTitleLabel = new JLabel("새 성장 로그 작성");
+		topTitleLabel.setFont(UITheme.BODY_MED);
+		topTitleLabel.setForeground(UITheme.TEXT);
 
-		JButton draftsBtn = new JButton("임시보관함");
+		draftsBtn = new JButton("임시보관함");
 		draftsBtn.setFont(UITheme.BODY_MED);
 		draftsBtn.setForeground(UITheme.TEXT);
-		draftsBtn.setBackground(Color.WHITE);
+		draftsBtn.setBackground(UITheme.WHITE);
 		draftsBtn.setBorder(new EmptyBorder(8, 10, 8, 10));
 		draftsBtn.setFocusPainted(false);
 		draftsBtn.setContentAreaFilled(false);
 		draftsBtn.setOpaque(false);
 		draftsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		draftsBtn.addActionListener(e -> openDrawer(owner));
+		draftsBtn.addActionListener(e -> controller.onOpenDraftDrawerRequested(owner));
 
-		JButton draftSaveBtn = new JButton("임시 저장");
+		draftSaveBtn = new JButton("임시 저장");
 		draftSaveBtn.setFont(UITheme.BODY_MED);
 		draftSaveBtn.setForeground(UITheme.TEXT);
-		draftSaveBtn.setBackground(Color.WHITE);
+		draftSaveBtn.setBackground(UITheme.WHITE);
 		draftSaveBtn.setBorder(new EmptyBorder(8, 10, 8, 10));
 		draftSaveBtn.setFocusPainted(false);
 		draftSaveBtn.setContentAreaFilled(false);
 		draftSaveBtn.setOpaque(false);
 		draftSaveBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		draftSaveBtn.addActionListener(e -> doDraftSave(true));
+		draftSaveBtn.addActionListener(e -> controller.onTempSaveRequested(true));
 
 		submitBtn = new RoundedButton("저장");
 		submitBtn.setBackground(UITheme.ACCENT_PURPLE);
-		submitBtn.setForeground(Color.WHITE);
+		submitBtn.setForeground(UITheme.WHITE);
 		submitBtn.setFont(UITheme.BODY_MED);
 		submitBtn.setVisible(false);
-		submitBtn.addActionListener(e -> onSubmit());
+		submitBtn.addActionListener(e -> controller.onSubmitRequested());
 
 		JPanel right = new JPanel();
 		right.setOpaque(false);
@@ -300,7 +308,7 @@ public class WriteLogView extends JPanel {
 		right.add(submitBtn);
 
 		bar.add(left, BorderLayout.WEST);
-		bar.add(title, BorderLayout.CENTER);
+		bar.add(topTitleLabel, BorderLayout.CENTER);
 		bar.add(right, BorderLayout.EAST);
 		return bar;
 	}
@@ -315,14 +323,14 @@ public class WriteLogView extends JPanel {
 		wrap.setBorder(new EmptyBorder(16, 18, 18, 18));
 
 		JPanel titleCard = new JPanel(new BorderLayout());
-		titleCard.setBackground(Color.WHITE);
+		titleCard.setBackground(UITheme.WHITE);
 		titleCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 		titleCard.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true), new EmptyBorder(14, 14, 14, 14)));
+				BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true), new EmptyBorder(14, 14, 14, 14)));
 
 		titleField.setFont(FontKit.medium(22f));
 		titleField.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-		titleField.setBackground(new Color(250, 250, 252));
+		titleField.setBackground(UITheme.RGB_250_250_252);
 		titleField.setPreferredSize(new Dimension(10, TITLE_FIELD_H));
 		titleField.setMinimumSize(new Dimension(10, TITLE_FIELD_H));
 		titleField.setMaximumSize(new Dimension(Integer.MAX_VALUE, TITLE_FIELD_H));
@@ -333,7 +341,7 @@ public class WriteLogView extends JPanel {
 		wrap.add(titleCard);
 		wrap.add(Box.createVerticalStrut(12));
 
-		// Wizard cards
+		
 		wizardLayout = new CardLayout();
 		wizardCards = new JPanel(wizardLayout);
 		wizardCards.setOpaque(false);
@@ -375,12 +383,12 @@ public class WriteLogView extends JPanel {
 
 		stepHint = new JLabel(" ");
 		stepHint.setFont(UITheme.CAPTION);
-		stepHint.setForeground(new Color(125, 125, 140));
+		stepHint.setForeground(UITheme.RGB_125_125_140);
 
 		stepBackBtn = new JButton("이전");
 		stepBackBtn.setFont(UITheme.BODY_MED);
 		stepBackBtn.setForeground(UITheme.TEXT);
-		stepBackBtn.setBackground(Color.WHITE);
+		stepBackBtn.setBackground(UITheme.WHITE);
 		stepBackBtn.setBorder(new EmptyBorder(10, 14, 10, 14));
 		stepBackBtn.setFocusPainted(false);
 		stepBackBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -388,7 +396,7 @@ public class WriteLogView extends JPanel {
 
 		stepNextBtn = new RoundedButton("다음");
 		stepNextBtn.setBackground(UITheme.ACCENT_PURPLE);
-		stepNextBtn.setForeground(Color.WHITE);
+		stepNextBtn.setForeground(UITheme.WHITE);
 		stepNextBtn.setFont(UITheme.BODY_MED);
 		stepNextBtn.addActionListener(e -> goNextStep());
 
@@ -460,9 +468,9 @@ public class WriteLogView extends JPanel {
 			panel.add(leftAligned(t));
 			panel.add(Box.createVerticalStrut(10));
 			goalArea.setFont(UITheme.BODY);
-			goalArea.setBackground(new Color(250, 250, 252));
+			goalArea.setBackground(UITheme.RGB_250_250_252);
 			goalArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(10, 10, 10, 10)));
 			JScrollPane sp = new JScrollPane(goalArea);
 			sp.setBorder(BorderFactory.createEmptyBorder());
@@ -541,9 +549,9 @@ public class WriteLogView extends JPanel {
 			panel.add(leftAligned(t));
 			panel.add(Box.createVerticalStrut(10));
 			painArea.setFont(UITheme.BODY);
-			painArea.setBackground(new Color(250, 250, 252));
+			painArea.setBackground(UITheme.RGB_250_250_252);
 			painArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(10, 10, 10, 10)));
 			JScrollPane sp = new JScrollPane(painArea);
 			sp.setBorder(BorderFactory.createEmptyBorder());
@@ -611,13 +619,13 @@ public class WriteLogView extends JPanel {
 			panel.add(Box.createVerticalStrut(8));
 			JLabel guide = new JLabel("예: 준비 → 실행 → 점검 흐름, 사용한 도구/방법, 작업 순서");
 			guide.setFont(UITheme.CAPTION);
-			guide.setForeground(new Color(130, 130, 140));
+			guide.setForeground(UITheme.RGB_130_130_140);
 			panel.add(leftAligned(guide));
 			panel.add(Box.createVerticalStrut(10));
 			processArea.setFont(UITheme.BODY);
-			processArea.setBackground(new Color(250, 250, 252));
+			processArea.setBackground(UITheme.RGB_250_250_252);
 			processArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(10, 10, 10, 10)));
 			JScrollPane sp = new JScrollPane(processArea);
 			sp.setBorder(BorderFactory.createEmptyBorder());
@@ -648,9 +656,9 @@ public class WriteLogView extends JPanel {
 			panel.add(leftAligned(t));
 			panel.add(Box.createVerticalStrut(10));
 			planGapArea.setFont(UITheme.BODY);
-			planGapArea.setBackground(new Color(250, 250, 252));
+			planGapArea.setBackground(UITheme.RGB_250_250_252);
 			planGapArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(10, 10, 10, 10)));
 			JScrollPane sp = new JScrollPane(planGapArea);
 			sp.setBorder(BorderFactory.createEmptyBorder());
@@ -669,9 +677,9 @@ public class WriteLogView extends JPanel {
 			panel.add(leftAligned(t));
 			panel.add(Box.createVerticalStrut(10));
 			learningArea.setFont(UITheme.BODY);
-			learningArea.setBackground(new Color(250, 250, 252));
+			learningArea.setBackground(UITheme.RGB_250_250_252);
 			learningArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(10, 10, 10, 10)));
 			JScrollPane sp = new JScrollPane(learningArea);
 			sp.setBorder(BorderFactory.createEmptyBorder());
@@ -749,9 +757,9 @@ public class WriteLogView extends JPanel {
 			panel.add(leftAligned(retryConditionTitle));
 			panel.add(Box.createVerticalStrut(10));
 			retryConditionArea.setFont(UITheme.BODY);
-			retryConditionArea.setBackground(new Color(250, 250, 252));
+			retryConditionArea.setBackground(UITheme.RGB_250_250_252);
 			retryConditionArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(10, 10, 10, 10)));
 			JScrollPane sp = new JScrollPane(retryConditionArea);
 			sp.setBorder(BorderFactory.createEmptyBorder());
@@ -771,9 +779,9 @@ public class WriteLogView extends JPanel {
 			panel.add(Box.createVerticalStrut(12));
 
 			JPanel box = new JPanel(new GridBagLayout());
-			box.setBackground(new Color(250, 250, 252));
+			box.setBackground(UITheme.RGB_250_250_252);
 			box.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
+					BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
 					new EmptyBorder(12, 12, 12, 12)));
 
 			GridBagConstraints gc = new GridBagConstraints();
@@ -810,9 +818,9 @@ public class WriteLogView extends JPanel {
 
 			RoundedButton goAi = new RoundedButton("AI 분석 바로가기");
 			goAi.setFont(UITheme.BODY_MED);
-			goAi.setBackground(new Color(0xF1F2F4));
-			goAi.setForeground(new Color(0x333333));
-			goAi.addActionListener(e -> saveAndNavigateToAi());
+			goAi.setBackground(UITheme.NEUTRAL_150);
+			goAi.setForeground(UITheme.TEXT_STRONG);
+			goAi.addActionListener(e -> controller.onSaveAndNavigateToAiRequested());
 
 			JPanel row = new JPanel();
 			row.setOpaque(false);
@@ -847,7 +855,7 @@ public class WriteLogView extends JPanel {
 	private void addSummaryRow(JPanel box, GridBagConstraints gc, int row, String k, JLabel v) {
 		JLabel key = new JLabel(k + ": ");
 		key.setFont(UITheme.BODY_MED);
-		key.setForeground(new Color(90, 90, 105));
+		key.setForeground(UITheme.RGB_90_90_105);
 		GridBagConstraints c1 = (GridBagConstraints) gc.clone();
 		c1.gridx = 0;
 		c1.gridy = row;
@@ -878,23 +886,7 @@ public class WriteLogView extends JPanel {
 	}
 
 	private void saveAndNavigateToAi() {
-		if (!validateStep("meta"))
-			return;
-
-		Draft d = snapshotFromWizard(false);
-		d.isDraft = false;
-		DraftStore.upsert(d);
-
-		dirty = false;
-
-		JOptionPane.showMessageDialog(this, "저장 완료! AI 분석으로 이동할게요.");
-
-		Window w = SwingUtilities.getWindowAncestor(this);
-		if (w instanceof MainFrame) {
-			((MainFrame) w).navigateToAi();
-			return;
-		}
-		JOptionPane.showMessageDialog(this, "왼쪽 메뉴의 AI 분석 탭에서 확인할 수 있어요.");
+		controller.onSaveAndNavigateToAiRequested();
 	}
 
 	private JComponent buildFieldCell() {
@@ -923,13 +915,13 @@ public class WriteLogView extends JPanel {
 		col.add(Box.createVerticalStrut(8));
 		categoryCombo.setFont(UITheme.BODY);
 		categoryCombo.setBorder(BorderFactory.createEmptyBorder());
-		categoryCombo.setBackground(new Color(250, 250, 252));
+		categoryCombo.setBackground(UITheme.RGB_250_250_252);
 		categoryCombo.setPrototypeDisplayValue("콘텐츠 제작 / 크리에이터 활동");
 		categoryCombo.setMaximumRowCount(12);
 		JPanel wrap = new JPanel(new BorderLayout());
-		wrap.setBackground(new Color(250, 250, 252));
+		wrap.setBackground(UITheme.RGB_250_250_252);
 		wrap.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true), new EmptyBorder(6, 10, 6, 10)));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true), new EmptyBorder(6, 10, 6, 10)));
 		wrap.add(categoryCombo, BorderLayout.CENTER);
 		wrap.setPreferredSize(new Dimension(META_COMBO_W, 38));
 		wrap.setMaximumSize(new Dimension(META_COMBO_W, 38));
@@ -947,13 +939,13 @@ public class WriteLogView extends JPanel {
 		statusCombo.setSelectedItem(LogStatus.IN_PROGRESS);
 		statusCombo.setFont(UITheme.BODY);
 		statusCombo.setBorder(BorderFactory.createEmptyBorder());
-		statusCombo.setBackground(new Color(250, 250, 252));
+		statusCombo.setBackground(UITheme.RGB_250_250_252);
 		statusCombo.setFocusable(false);
 		statusCombo.addActionListener(e -> markDirty());
 		JPanel wrap = new JPanel(new BorderLayout());
-		wrap.setBackground(new Color(250, 250, 252));
+		wrap.setBackground(UITheme.RGB_250_250_252);
 		wrap.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true), new EmptyBorder(6, 10, 6, 10)));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true), new EmptyBorder(6, 10, 6, 10)));
 		wrap.add(statusCombo, BorderLayout.CENTER);
 		wrap.setPreferredSize(new Dimension(META_COMBO_W, 38));
 		wrap.setMaximumSize(new Dimension(META_COMBO_W, 38));
@@ -967,8 +959,9 @@ public class WriteLogView extends JPanel {
 		col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
 		col.add(leftAligned(rowTitle("공개 범위 *")));
 		col.add(Box.createVerticalStrut(8));
-		ChipGroup visibilityChips = new ChipGroup(
-				new ChipGroup.Item[] { new ChipGroup.Item("비공개", 0xE897), new ChipGroup.Item("공개", 0xE898) });
+
+		visibilityChips = new ToggleChipGroup(
+				new ToggleChipGroup.Item[] { new ToggleChipGroup.Item("비공개", 0xE897), new ToggleChipGroup.Item("공개", 0xE898) });
 		visibilityChips.selectByText("비공개");
 		visibilityChips.setOnSelectionChanged(() -> {
 			String v = visibilityChips.getSelectedText();
@@ -976,6 +969,7 @@ public class WriteLogView extends JPanel {
 			publicBtn.setSelected("공개".equals(v));
 			markDirty();
 		});
+
 		privateBtn.setVisible(false);
 		publicBtn.setVisible(false);
 		col.add(leftAligned(visibilityChips));
@@ -1145,7 +1139,12 @@ public class WriteLogView extends JPanel {
 		wizardLayout.show(wizardCards, stepKeys.get(stepIndex));
 		stepBackBtn.setEnabled(stepIndex > 0);
 		boolean isLast = stepIndex == stepKeys.size() - 1;
-		stepNextBtn.setText(isLast ? "저장하기" : "다음");
+
+		if (isLast)
+			stepNextBtn.setText(editMode ? "수정 완료" : "저장하기");
+		else
+			stepNextBtn.setText("다음");
+
 		submitBtn.setVisible(false);
 		stepHint.setText((stepIndex + 1) + " / " + stepKeys.size());
 		revalidate();
@@ -1176,85 +1175,48 @@ public class WriteLogView extends JPanel {
 		showStep(stepIndex + 1);
 	}
 
-	private boolean validateStep(String key) {
-		if ("meta".equals(key)) {
-			String title = titleField.getEffectiveText().trim();
-			if (title.isEmpty()) {
-				JOptionPane.showMessageDialog(this, "제목을 입력해 주세요.");
-				titleField.requestFocus();
-				return false;
-			}
-			String field = resolveField();
-			if (field == null || field.isBlank()) {
-				JOptionPane.showMessageDialog(this, "분야를 선택해 주세요.");
-				return false;
-			}
-			if ("기타".equals(fieldChips.getSelectedText()) && customField.getEffectiveText().trim().isEmpty()) {
-				JOptionPane.showMessageDialog(this, "기타 분야를 입력해 주세요.");
-				customField.requestFocus();
-				return false;
-			}
-			String category = (String) categoryCombo.getSelectedItem();
-			if (category == null || category.isBlank()) {
-				JOptionPane.showMessageDialog(this, "카테고리를 선택해 주세요.");
-				return false;
-			}
-			if (statusCombo == null || statusCombo.getSelectedItem() == null) {
-				JOptionPane.showMessageDialog(this, "현재 상태를 선택해 주세요.");
-				return false;
-			}
-			return true;
-		}
-		if ("goal".equals(key)) {
-			if (goalArea.getEffectiveText().trim().isEmpty()) {
-				JOptionPane.showMessageDialog(this, "기대했던 점을 한 줄만 적어도 좋아요.");
-				goalArea.requestFocus();
-				return false;
-			}
-			return true;
-		}
-		if ("mood".equals(key)) {
-			if (moodChips.getSelectedText() == null) {
-				JOptionPane.showMessageDialog(this, "진행 과정 느낌을 선택해 주세요.");
-				return false;
-			}
-			return true;
-		}
-		if ("process".equals(key)) {
-			if (processArea.getEffectiveText().trim().isEmpty()) {
-				JOptionPane.showMessageDialog(this, "진행 과정을 간단히 적어 주세요.");
-				processArea.requestFocus();
-				return false;
-			}
-			return true;
-		}
-		if ("plangap".equals(key)) {
-			if (planGapChips.getSelectedText() == null) {
-				JOptionPane.showMessageDialog(this, "계획과의 차이를 선택해 주세요.");
-				return false;
-			}
-			return true;
-		}
-		if ("plangap_detail".equals(key)) {
+
+private boolean validateStep(String key) {
+	WriteLogValidator.Result r;
+	switch (key) {
+		case "meta" -> r = WriteLogValidator.validateMeta(
+			titleField.getEffectiveText(),
+			resolveField(),
+			"기타".equals(fieldChips.getSelectedText()),
+			customField.getEffectiveText(),
+			(String) categoryCombo.getSelectedItem(),
+			(statusCombo == null) ? null : statusCombo.getSelectedItem(),
+			() -> titleField.requestFocus(),
+			() -> customField.requestFocus()
+		);
+		case "goal" -> r = WriteLogValidator.validateRequiredText(goalArea.getEffectiveText(),
+			"기대했던 점을 한 줄만 적어도 좋아요.", () -> goalArea.requestFocus());
+		case "mood" -> r = WriteLogValidator.validateRequiredSelection(moodChips.getSelectedText(),
+			"진행 과정 느낌을 선택해 주세요.", null);
+		case "process" -> r = WriteLogValidator.validateRequiredText(processArea.getEffectiveText(),
+			"진행 과정을 간단히 적어 주세요.", () -> processArea.requestFocus());
+		case "plangap" -> r = WriteLogValidator.validateRequiredSelection(planGapChips.getSelectedText(),
+			"계획과의 차이를 선택해 주세요.", null);
+		case "plangap_detail" -> {
 			String gap = planGapChips.getSelectedText();
-			if (gap != null && (gap.contains("일부") || gap.contains("많이"))
-					&& planGapArea.getEffectiveText().trim().isEmpty()) {
-				JOptionPane.showMessageDialog(this, "어떤 부분이 달라졌는지 한 줄만 적어도 좋아요.");
-				planGapArea.requestFocus();
-				return false;
-			}
-			return true;
+			r = WriteLogValidator.validatePlanGapDetail(gap, planGapArea.getEffectiveText(),
+				"어떤 부분이 달라졌는지 한 줄만 적어도 좋아요.", () -> planGapArea.requestFocus());
 		}
-		if ("next_plan".equals(key)) {
-			if (nextPlanChips.getSelectedText() == null) {
-				JOptionPane.showMessageDialog(this, "다음 시도 계획을 선택해 주세요.");
-				return false;
-			}
-			refreshRetryConditionTitle();
-			return true;
+		case "next_plan" -> {
+			r = WriteLogValidator.validateRequiredSelection(nextPlanChips.getSelectedText(),
+				"다음 시도 계획을 선택해 주세요.", null);
+			if (r.ok) refreshRetryConditionTitle();
 		}
-		return true;
+		default -> r = WriteLogValidator.ok();
 	}
+	if (!r.ok) {
+		JOptionPane.showMessageDialog(this, r.message);
+		if (r.onFailFocus != null) r.onFailFocus.run();
+		return false;
+	}
+	return true;
+}
+
 
 	private void attachDirtyListener(JTextComponent c) {
 		c.getDocument().addDocumentListener(new DocumentListener() {
@@ -1280,40 +1242,43 @@ public class WriteLogView extends JPanel {
 	}
 
 	private void doDraftSave(boolean showToast) {
-		Draft d = snapshotFromWizard(true);
-		DraftStore.upsert(d);
-		dirty = false;
-		if (drawer != null && drawer.isVisible())
-			drawer.refresh();
-		if (showToast)
-			JOptionPane.showMessageDialog(this, "임시 저장 완료!");
+		controller.onTempSaveRequested(showToast);
 	}
 
-	private void openDrawer(JFrame owner) {
+	void openDrawer(JFrame owner) {
 		if (drawer == null)
-			drawer = new DraftDrawerDialog(owner, this::loadDraftIntoForm, id -> DraftStore.delete(id));
+			drawer = new DraftDrawerDialog(owner, this::loadDraftIntoForm, id -> controller.onDeleteDraftRequested(id)); // DB
 		drawer.refresh();
 		drawer.openAtRightOf(owner);
 	}
 
 	private void onSubmit() {
-		Draft d = snapshotFromWizard(false);
-		d.isDraft = false;
-		DraftStore.upsert(d);
-		dirty = false;
-		JOptionPane.showMessageDialog(this, editMode ? "수정 완료!" : "저장 완료!");
-		LogPost saved = toLogPost(d);
-		if (editMode) {
-			editMode = false;
-			if (onEditSaved != null)
-				onEditSaved.accept(saved);
-			return;
-		}
-		if (onRegistered != null)
-			onRegistered.run();
+		controller.onSubmitRequested();
 	}
 
-	private Draft snapshotFromWizard(boolean forDraft) {
+	
+
+void handleSubmitResult(LogPost saved) {
+	JOptionPane.showMessageDialog(this, editMode ? "수정 완료!" : "저장 완료!");
+	if (editMode) {
+		editMode = false;
+
+		if (topTitleLabel != null)
+			topTitleLabel.setText("새 성장 로그 작성");
+		if (draftsBtn != null)
+			draftsBtn.setVisible(true);
+		if (draftSaveBtn != null)
+			draftSaveBtn.setVisible(true);
+
+		if (onEditSaved != null)
+			onEditSaved.accept(saved);
+		return;
+	}
+	if (onRegistered != null)
+		onRegistered.run();
+}
+
+Draft snapshotFromWizard(boolean forDraft) {
 		Draft d = current;
 		d.title = titleField.getEffectiveText();
 		d.field = resolveField();
@@ -1364,47 +1329,165 @@ public class WriteLogView extends JPanel {
 		return false;
 	}
 
-	private LogPost toLogPost(Draft d) {
-		return new LogPost(d.id, d.field, d.category, (d.status == null ? LogStatus.IN_PROGRESS : d.status), d.title,
-				d.updatedAt.toLocalDate(), d.isPublic, d.workText, d.mood, d.reasonOther, d.learnOneLine, d.retryOne,
-				d.linkUrl);
+	LogPost toLogPost(Draft d) {
+		return new LogPost("LOG", d.id, d.field, d.category, (d.status == null ? LogStatus.IN_PROGRESS : d.status), d.title,
+				d.updatedAt.toLocalDate(), d.isPublic,
+
+				d.goalText, d.mood, (d.goodPoints == null ? List.of() : new ArrayList<>(d.goodPoints)), d.goodOther,
+				d.painPoint, (d.influenceFactors == null ? List.of() : new ArrayList<>(d.influenceFactors)),
+				d.influenceOther, d.processText, d.planGapLevel, d.planGapDetail, d.learningText,
+				(d.nextAdjustPoints == null ? List.of() : new ArrayList<>(d.nextAdjustPoints)), d.nextAdjustOther,
+				d.nextPlan, d.retryCondition, d.linkUrl, d.linkPoint);
 	}
 
 	public void beginEdit(LogPost post, Consumer<LogPost> onSaved) {
 		if (post == null)
 			return;
+
 		editMode = true;
 		onEditSaved = onSaved;
+
+		if (topTitleLabel != null)
+			topTitleLabel.setText("성장 로그 수정");
+		if (draftsBtn != null)
+			draftsBtn.setVisible(false);
+		if (draftSaveBtn != null)
+			draftSaveBtn.setVisible(false);
+
 		current.id = post.id;
 		current.isDraft = false;
-		titleField.setText(post.title);
-		String field = (post.field == null ? "" : post.field);
+
+		titleField.setTextOrPlaceholder(post.title);
+
+		String field = (post.field == null) ? "" : post.field;
 		if (!field.isBlank()) {
-			if (fieldChips.contains(field))
+			if (fieldChips.containsLabel(field)) {
 				fieldChips.selectByText(field);
-			else {
+				customField.setVisible(false);
+				customField.setTextOrPlaceholder("");
+			} else {
 				fieldChips.selectByText("기타");
-				customField.setText(field);
+				customField.setVisible(true);
+				customField.setTextOrPlaceholder(field);
 			}
+		} else {
+			fieldChips.clearSelection();
+			customField.setVisible(false);
+			customField.setTextOrPlaceholder("");
 		}
-		if (post.subCategory != null)
+
+		if (post.subCategory != null && !post.subCategory.isBlank()) {
 			categoryCombo.setSelectedItem(post.subCategory);
-		if (post.isPublic)
-			publicBtn.setSelected(true);
-		else
-			privateBtn.setSelected(true);
-		if (statusCombo != null)
+		} else {
+			categoryCombo.setSelectedIndex(0);
+		}
+
+		if (visibilityChips != null)
+			visibilityChips.selectByText(post.isPublic ? "공개" : "비공개");
+		publicBtn.setSelected(post.isPublic);
+		privateBtn.setSelected(!post.isPublic);
+
+		if (statusCombo != null) {
 			statusCombo.setSelectedItem(post.status == null ? LogStatus.IN_PROGRESS : post.status);
-		processArea.setText(post.whatIDid == null ? "" : post.whatIDid);
-		moodChips.selectByText(post.feeling == null ? "" : post.feeling);
-		painArea.setText(post.difficulty == null ? "" : post.difficulty);
-		learningArea.setText(post.learning == null ? "" : post.learning);
-		retryConditionArea.setText(post.retryPlan == null ? "" : post.retryPlan);
-		linkField.setText(post.link == null ? "" : post.link);
+		}
+
+		String linkUrl = (post.linkUrl != null && !post.linkUrl.isBlank()) ? post.linkUrl : post.link;
+		linkField.setTextOrPlaceholder(linkUrl);
+
+		linkFocusField.setTextOrPlaceholder(post.linkPoint);
 		toggleLinkFocusVisibility();
+
+		goalArea.setTextOrPlaceholder(post.goalText);
+
+		String mood = (post.mood != null && !post.mood.isBlank()) ? post.mood : post.feeling;
+		if (mood != null && !mood.isBlank())
+			moodChips.selectByText(stripEmoji(mood));
+		else
+			moodChips.clearSelection();
+
+		setChecks(goodPointChecks, post.goodPoints);
+		boolean goodOtherOn = isCheckSelected(goodPointChecks, "기타");
+		goodOtherField.setEnabled(goodOtherOn);
+		goodOtherField.setTextOrPlaceholder(post.goodOther);
+
+		String painPoint = (post.painPoint != null && !post.painPoint.isBlank()) ? post.painPoint : post.difficulty;
+		painArea.setTextOrPlaceholder(painPoint);
+
+		setChecks(factorChecks, post.influenceFactors);
+		boolean factorOtherOn = isCheckSelected(factorChecks, "기타");
+		factorOtherField.setEnabled(factorOtherOn);
+		factorOtherField.setTextOrPlaceholder(post.influenceOther);
+
+		String process = (post.processText != null && !post.processText.isBlank()) ? post.processText : post.whatIDid;
+		processArea.setTextOrPlaceholder(process);
+
+		if (post.planGapLevel != null && !post.planGapLevel.isBlank())
+			planGapChips.selectByText(stripEmoji(post.planGapLevel));
+		else
+			planGapChips.clearSelection();
+		planGapArea.setTextOrPlaceholder(post.planGapDetail);
+
+		String learning = (post.learningText != null && !post.learningText.isBlank()) ? post.learningText
+				: post.learning;
+		learningArea.setTextOrPlaceholder(learning);
+
+		setChecks(nextAdjustChecks, post.nextAdjustPoints);
+		boolean nextOtherOn = isCheckSelected(nextAdjustChecks, "기타");
+		nextAdjustOtherField.setEnabled(nextOtherOn);
+		nextAdjustOtherField.setTextOrPlaceholder(post.nextAdjustOther);
+
+		if (post.nextPlan != null && !post.nextPlan.isBlank())
+			nextPlanChips.selectByText(stripEmoji(post.nextPlan));
+		else
+			nextPlanChips.clearSelection();
+
+		String retry = (post.retryCondition != null && !post.retryCondition.isBlank()) ? post.retryCondition
+				: post.retryPlan;
+		retryConditionArea.setTextOrPlaceholder(retry);
+
+		current.title = titleField.getEffectiveText();
+		current.field = resolveField();
+		current.category = (String) categoryCombo.getSelectedItem();
+		current.status = (statusCombo == null ? LogStatus.IN_PROGRESS : (LogStatus) statusCombo.getSelectedItem());
+		current.isPublic = publicBtn.isSelected();
+
+		current.linkUrl = linkField.getEffectiveText();
+		current.linkPoint = linkFocusField.getEffectiveText();
+
+		current.goalText = goalArea.getEffectiveText();
+		current.mood = stripEmoji(moodChips.getSelectedText());
+
+		current.goodPoints = readChecked(goodPointChecks, "기타");
+		current.goodOther = goodOtherField.getEffectiveText();
+
+		current.painPoint = painArea.getEffectiveText();
+		current.influenceFactors = readChecked(factorChecks, "기타");
+		current.influenceOther = factorOtherField.getEffectiveText();
+
+		current.processText = processArea.getEffectiveText();
+		current.planGapLevel = stripEmoji(planGapChips.getSelectedText());
+		current.planGapDetail = planGapArea.getEffectiveText();
+
+		current.learningText = learningArea.getEffectiveText();
+
+		current.nextAdjustPoints = readChecked(nextAdjustChecks, "기타");
+		current.nextAdjustOther = nextAdjustOtherField.getEffectiveText();
+
+		current.nextPlan = stripEmoji(nextPlanChips.getSelectedText());
+		current.retryCondition = retryConditionArea.getEffectiveText();
+
+		current.isDraft = false;
+		current.updatedAt = java.time.LocalDateTime.now();
+
+		refreshRetryConditionTitle();
+
 		rebuildWizardFlow();
 		showStep(0);
+
 		dirty = false;
+
+		revalidate();
+		repaint();
 	}
 
 	private void loadDraftIntoForm(Draft d) {
@@ -1412,6 +1495,7 @@ public class WriteLogView extends JPanel {
 			return;
 		current = d;
 		titleField.setTextOrPlaceholder(d.title);
+
 		String field = (d.field == null) ? "" : d.field;
 		if (field.equals("영상") || field.equals("이미지") || field.equals("글") || field.equals("음악")) {
 			fieldChips.selectByText(field);
@@ -1422,39 +1506,53 @@ public class WriteLogView extends JPanel {
 			customField.setVisible(true);
 			customField.setTextOrPlaceholder(field.equals("기타") ? "" : field);
 		}
+
 		if (d.category != null)
 			categoryCombo.setSelectedItem(d.category);
-		if (d.isPublic)
-			publicBtn.setSelected(true);
-		else
-			privateBtn.setSelected(true);
+
+		if (visibilityChips != null)
+			visibilityChips.selectByText(d.isPublic ? "공개" : "비공개");
+		publicBtn.setSelected(d.isPublic);
+		privateBtn.setSelected(!d.isPublic);
+
 		if (statusCombo != null)
 			statusCombo.setSelectedItem(d.status != null ? d.status : LogStatus.IN_PROGRESS);
+
 		linkField.setTextOrPlaceholder(d.linkUrl);
 		linkFocusField.setTextOrPlaceholder(d.linkPoint);
 		toggleLinkFocusVisibility();
 		goalArea.setTextOrPlaceholder(d.goalText);
+
 		if (d.mood != null)
 			moodChips.selectByText(d.mood);
 		else
 			moodChips.clearSelection();
+
 		setChecks(goodPointChecks, d.goodPoints);
 		goodOtherField.setEnabled(isCheckSelected(goodPointChecks, "기타"));
 		goodOtherField.setTextOrPlaceholder(d.goodOther);
+
 		painArea.setTextOrPlaceholder(d.painPoint);
+
 		setChecks(factorChecks, d.influenceFactors);
 		factorOtherField.setEnabled(isCheckSelected(factorChecks, "기타"));
 		factorOtherField.setTextOrPlaceholder(d.influenceOther);
+
 		processArea.setTextOrPlaceholder(d.processText);
+
 		if (d.planGapLevel != null)
 			planGapChips.selectByText(d.planGapLevel);
 		planGapArea.setTextOrPlaceholder(d.planGapDetail);
+
 		learningArea.setTextOrPlaceholder(d.learningText);
+
 		setChecks(nextAdjustChecks, d.nextAdjustPoints);
 		nextAdjustOtherField.setEnabled(isCheckSelected(nextAdjustChecks, "기타"));
 		nextAdjustOtherField.setTextOrPlaceholder(d.nextAdjustOther);
+
 		if (d.nextPlan != null)
 			nextPlanChips.selectByText(d.nextPlan);
+
 		retryConditionArea.setTextOrPlaceholder(d.retryCondition);
 		refreshRetryConditionTitle();
 		rebuildWizardFlow();
@@ -1490,8 +1588,8 @@ public class WriteLogView extends JPanel {
 		JButton b = new JButton(new String(Character.toChars(materialCodePoint)));
 		b.setToolTipText(tooltip);
 		b.setFont(FontKit.materialIcon(22f));
-		b.setForeground(new Color(110, 110, 125));
-		b.setBackground(Color.WHITE);
+		b.setForeground(UITheme.RGB_110_110_125);
+		b.setBackground(UITheme.WHITE);
 		b.setBorder(new EmptyBorder(6, 6, 6, 6));
 		b.setFocusPainted(false);
 		b.setContentAreaFilled(false);
@@ -1516,47 +1614,22 @@ public class WriteLogView extends JPanel {
 	private void styleInput(JTextField tf) {
 		tf.setFont(UITheme.BODY);
 		tf.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true), new EmptyBorder(8, 10, 8, 10)));
-		tf.setBackground(new Color(250, 250, 252));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true), new EmptyBorder(8, 10, 8, 10)));
+		tf.setBackground(UITheme.RGB_250_250_252);
 	}
 
 	private JPanel card(PanelBuilder builder) {
-		JPanel card = new JPanel() {
-			@Override
-			public void addNotify() {
-				super.addNotify();
-				SwingUtilities.invokeLater(() -> {
-					int h = getPreferredSize().height;
-					if (h > 0)
-						setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
-				});
-			}
-		};
-		card.setBackground(Color.WHITE);
-		card.setAlignmentX(Component.LEFT_ALIGNMENT);
-		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true), new EmptyBorder(14, 14, 14, 14)));
+		JPanel card = MainUiParts.createCard(14, true);
 		builder.build(card);
-		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 		return card;
 	}
 
 	private JPanel cardWithTitle(String title, PanelBuilder builder) {
-		return card(panel -> {
-			panel.setLayout(new BorderLayout());
-			JLabel t = new JLabel(title);
-			t.setFont(UITheme.BODY_MED);
-			t.setForeground(UITheme.TEXT);
-			JPanel top = new JPanel(new BorderLayout());
-			top.setOpaque(false);
-			top.add(t, BorderLayout.WEST);
-			panel.add(top, BorderLayout.NORTH);
-			JPanel body = new JPanel();
-			body.setOpaque(false);
-			body.setBorder(new EmptyBorder(12, 0, 0, 0));
-			builder.build(body);
-			panel.add(body, BorderLayout.CENTER);
-		});
+		JPanel body = new JPanel();
+		body.setOpaque(false);
+		body.setLayout(new BorderLayout());
+		builder.build(body);
+		return MainUiParts.createCardWithTitle(title, 14, body);
 	}
 
 	private static class TrackWidthPanel extends JPanel implements Scrollable {
@@ -1590,42 +1663,6 @@ public class WriteLogView extends JPanel {
 		void build(JPanel panel);
 	}
 
-	static class GlyphIcon implements Icon {
-		private final String glyph;
-		private final Font font;
-		private final Color color;
-		private final int w, h;
-
-		GlyphIcon(int materialCodePoint, float size, Color color) {
-			this.glyph = new String(Character.toChars(materialCodePoint));
-			this.font = FontKit.materialIcon(size);
-			this.color = color;
-			this.w = (int) (size + 6);
-			this.h = (int) (size + 6);
-		}
-
-		@Override
-		public int getIconWidth() {
-			return w;
-		}
-
-		@Override
-		public int getIconHeight() {
-			return h;
-		}
-
-		@Override
-		public void paintIcon(Component c, Graphics g, int x, int y) {
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setFont(font);
-			g2.setColor(color);
-			FontMetrics fm = g2.getFontMetrics();
-			g2.drawString(glyph, x + 2, y + ((h - fm.getHeight()) / 2) + fm.getAscent());
-			g2.dispose();
-		}
-	}
-
 	static class PlaceholderTextField extends JTextField {
 		private final String placeholder;
 		private boolean showingPlaceholder = true;
@@ -1633,7 +1670,7 @@ public class WriteLogView extends JPanel {
 		PlaceholderTextField(String placeholder) {
 			this.placeholder = placeholder;
 			setText(placeholder);
-			setForeground(new Color(160, 160, 170));
+			setForeground(UITheme.RGB_160_160_170);
 			setBorder(new EmptyBorder(10, 10, 10, 10));
 			addFocusListener(new java.awt.event.FocusAdapter() {
 				public void focusGained(java.awt.event.FocusEvent e) {
@@ -1658,7 +1695,7 @@ public class WriteLogView extends JPanel {
 		void resetToPlaceholder() {
 			showingPlaceholder = true;
 			setText(placeholder);
-			setForeground(new Color(160, 160, 170));
+			setForeground(UITheme.RGB_160_160_170);
 		}
 
 		void setTextOrPlaceholder(String v) {
@@ -1681,7 +1718,7 @@ public class WriteLogView extends JPanel {
 			setLineWrap(true);
 			setWrapStyleWord(true);
 			setText(placeholder);
-			setForeground(new Color(160, 160, 170));
+			setForeground(UITheme.RGB_160_160_170);
 			setBorder(new EmptyBorder(10, 10, 10, 10));
 			addFocusListener(new java.awt.event.FocusAdapter() {
 				public void focusGained(java.awt.event.FocusEvent e) {
@@ -1706,7 +1743,7 @@ public class WriteLogView extends JPanel {
 		void resetToPlaceholder() {
 			showingPlaceholder = true;
 			setText(placeholder);
-			setForeground(new Color(160, 160, 170));
+			setForeground(UITheme.RGB_160_160_170);
 		}
 
 		void setTextOrPlaceholder(String v) {
@@ -1720,136 +1757,12 @@ public class WriteLogView extends JPanel {
 		}
 	}
 
-	static class ChipGroup extends JPanel {
-		private final ButtonGroup group = new ButtonGroup();
-		private final List<ChipToggle> chips = new ArrayList<>();
-		private Runnable onSelectionChanged;
-
-		static class Item {
-			final String label;
-			final Integer iconCodePoint;
-
-			Item(String label, Integer iconCodePoint) {
-				this.label = label;
-				this.iconCodePoint = iconCodePoint;
-			}
-		}
-
-		ChipGroup(Item[] items) {
-			setOpaque(false);
-			setLayout(new FlowLayout(FlowLayout.LEFT, 8, 0));
-			for (Item it : items) {
-				ChipToggle t = new ChipToggle(it.label, it.iconCodePoint);
-				group.add(t);
-				chips.add(t);
-				add(t);
-				t.addActionListener(e -> {
-					if (onSelectionChanged != null)
-						onSelectionChanged.run();
-				});
-			}
-		}
-
-		void setOnSelectionChanged(Runnable r) {
-			this.onSelectionChanged = r;
-		}
-
-		String getSelectedText() {
-			for (ChipToggle c : chips)
-				if (c.isSelected())
-					return c.getText();
-			return null;
-		}
-
-		void clearSelection() {
-			group.clearSelection();
-			repaint();
-		}
-
-		boolean contains(String text) {
-			String target = normalize(text);
-			for (ChipToggle c : chips)
-				if (Objects.equals(normalize(c.getText()), target))
-					return true;
-			return false;
-		}
-
-		void selectByText(String text) {
-			String target = normalize(text);
-			for (ChipToggle c : chips) {
-				if (Objects.equals(normalize(c.getText()), target)) {
-					c.setSelected(true);
-					repaint();
-					return;
-				}
-			}
-		}
-
-		private String normalize(String s) {
-			if (s == null)
-				return "";
-			return s.replaceAll("^[\\p{So}\\p{Sk}\\p{Cs}\\s]+", "").trim();
-		}
-
-		static class ChipToggle extends JToggleButton {
-			private boolean hover = false;
-
-			ChipToggle(String text, Integer iconCodePoint) {
-				super(text);
-				setFont(UITheme.BODY);
-				setFocusPainted(false);
-				setContentAreaFilled(false);
-				setBorder(new EmptyBorder(8, 12, 8, 12));
-				setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-				setForeground(UITheme.TEXT);
-				setOpaque(false);
-				if (iconCodePoint != null) {
-					setIcon(new GlyphIcon(iconCodePoint, 18f, new Color(110, 110, 125)));
-					setIconTextGap(8);
-				}
-				addMouseListener(new java.awt.event.MouseAdapter() {
-					public void mouseEntered(java.awt.event.MouseEvent e) {
-						hover = true;
-						repaint();
-					}
-
-					public void mouseExited(java.awt.event.MouseEvent e) {
-						hover = false;
-						repaint();
-					}
-				});
-			}
-
-			protected void paintComponent(Graphics g) {
-				Graphics2D g2 = (Graphics2D) g.create();
-				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				Color bg, bd;
-				if (isSelected()) {
-					bg = new Color(0xEAE6FF);
-					bd = new Color(0xCFC9FF);
-				} else if (hover) {
-					bg = new Color(0xF3F1FF);
-					bd = new Color(235, 235, 242);
-				} else {
-					bg = new Color(250, 250, 252);
-					bd = new Color(235, 235, 242);
-				}
-				g2.setColor(bg);
-				g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
-				g2.setColor(bd);
-				g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
-				super.paintComponent(g2);
-				g2.dispose();
-			}
-		}
-	}
-
 	static class CollapsiblePanel extends JPanel {
 		private final JComponent content;
 		private final JButton toggle;
 		private boolean expanded = false;
-		private final Icon expandIcon = new GlyphIcon(0xE5CF, 18f, new Color(110, 110, 125));
-		private final Icon collapseIcon = new GlyphIcon(0xE5CE, 18f, new Color(110, 110, 125));
+		private final Icon expandIcon = MainUiParts.glyphIcon(0xE5CF, 18f, UITheme.ICON_MUTED);
+		private final Icon collapseIcon = MainUiParts.glyphIcon(0xE5CE, 18f, UITheme.ICON_MUTED);
 
 		CollapsiblePanel(JComponent content, String expandText, String collapseText) {
 			super(new BorderLayout());
@@ -1857,7 +1770,7 @@ public class WriteLogView extends JPanel {
 			this.content = content;
 			toggle = new JButton(expandText);
 			toggle.setFont(UITheme.BODY_MED);
-			toggle.setForeground(new Color(110, 110, 125));
+			toggle.setForeground(UITheme.RGB_110_110_125);
 			toggle.setContentAreaFilled(false);
 			toggle.setBorder(new EmptyBorder(6, 8, 6, 8));
 			toggle.setFocusPainted(false);
@@ -1886,5 +1799,9 @@ public class WriteLogView extends JPanel {
 			toggle.setText("더 보기");
 			toggle.setIcon(expandIcon);
 		}
+	}
+
+	boolean validateStepForController(String key) {
+		return validateStep(key);
 	}
 }

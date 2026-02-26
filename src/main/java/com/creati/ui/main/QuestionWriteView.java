@@ -1,333 +1,289 @@
 package com.creati.ui.main;
 
+import com.creati.ui.components.RoundedButton;
+import com.creati.ui.components.ToggleChipGroup;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.AbstractDocument;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DocumentFilter;
 import java.awt.*;
 import java.util.Objects;
 
-import static com.creati.ui.main.MainUiParts.RoundedButton;
+// DB(TODO): Persist QnA posts via repository.
 
-/**
- * QuestionWriteView (질문하기 작성 화면)
- * - 상단: 뒤로가기 / 제목(질문하기) / 등록
- * - 기본 정보: 분야(기타 입력 포함), 카테고리, (선택) 업로드 링크
- * - 질문 내용: 자유 입력 + 글자수 카운터
- *
- * ※ 질문하기는 무조건 공개(공개 범위 UI 없음)
- */
 public class QuestionWriteView extends JPanel {
 
-	private static final int MAX_CHARS = 500;
+	private static final int META_COMBO_W = 260;
+	private static final int TITLE_FIELD_H = 56;
 
 	private final Runnable onBack;
 	private final Runnable onRegistered;
+	private final QuestionWriteController controller;
 
-	private final WriteLogView.PlaceholderTextField titleField =
-			new WriteLogView.PlaceholderTextField("제목을 입력해 주세요.");
+	
+	private final JLabel topTitleLabel = new JLabel("질문 작성");
+	private final RoundedButton submitBtn = new RoundedButton("등록");
 
-	private final WriteLogView.ChipGroup fieldChips = new WriteLogView.ChipGroup(new WriteLogView.ChipGroup.Item[] {
-			new WriteLogView.ChipGroup.Item("영상", 0xE04B),
-			new WriteLogView.ChipGroup.Item("이미지", 0xE3F4),
-			new WriteLogView.ChipGroup.Item("글", 0xE3C9),
-			new WriteLogView.ChipGroup.Item("음악", 0xE405),
-			new WriteLogView.ChipGroup.Item("기타", 0xE5D3)
+	
+	private final PlaceholderTextField titleField = new PlaceholderTextField("제목을 입력해 주세요.");
+	private final ToggleChipGroup fieldChips = new ToggleChipGroup(new ToggleChipGroup.Item[] {
+			new ToggleChipGroup.Item("영상", 0xE04B),
+			new ToggleChipGroup.Item("이미지", 0xE3F4),
+			new ToggleChipGroup.Item("글", 0xE3C9),
+			new ToggleChipGroup.Item("음악", 0xE405),
+			new ToggleChipGroup.Item("기타", 0xE5D3)
 	});
-
-	// '기타' 선택 시 노출되는 입력칸
-	private final WriteLogView.PlaceholderTextField customField =
-			new WriteLogView.PlaceholderTextField("예: 뉴스레터");
-
 	private final JComboBox<String> categoryCombo = new JComboBox<>(new String[] {
 			"일상 / 브이로그",
-			"공부 / 자기계발",
-			"개발 / IT / 생산성",
-			"운동 / 건강 / 루틴",
+			"공부 / 자기계발 / 교육",
+			"생산성 / 루틴 / 습관",
+			"개발 / IT / 프로젝트",
 			"리뷰 / 정보 / 추천",
 			"취미 / 관심사",
-			"마인드 / 생각 / 경험",
+			"생각 / 마인드 / 경험 기록",
+			"콘텐츠 제작 / 크리에이터 활동",
 			"기타"
 	});
+	private final PlaceholderTextField linkField = new PlaceholderTextField("참고 링크를 붙여넣어 주세요 (선택)");
+	private final PlaceholderTextArea contentArea = new PlaceholderTextArea("질문 내용을 입력해 주세요.");
 
-	private final WriteLogView.PlaceholderTextField linkField =
-			new WriteLogView.PlaceholderTextField("업로드한 게시글 링크를 붙여넣어줘!");
-
-	private final WriteLogView.PlaceholderTextArea questionArea =
-			new WriteLogView.PlaceholderTextArea("크리에이터 관련 질문을 마음껏 적어줘!");
-
-	private final JLabel counterLabel = new JLabel("0 / " + MAX_CHARS);
+	private JScrollPane scroll;
 
 	public QuestionWriteView(JFrame owner, Runnable onBack, Runnable onRegistered) {
 		UITheme.ensureInit();
 		FontKit.init();
-		this.onBack = onBack;
-		this.onRegistered = onRegistered;
+		this.onBack = (onBack == null) ? () -> {} : onBack;
+		this.onRegistered = (onRegistered == null) ? () -> {} : onRegistered;
+		this.controller = new QuestionWriteController(Services.LOGS);
 
 		setLayout(new BorderLayout());
 		setBackground(UITheme.BG);
-
 		add(buildTopBar(), BorderLayout.NORTH);
 		add(buildBody(), BorderLayout.CENTER);
-
-		wireEvents();
-		updateCounter();
+		wireEvents(owner);
+		startNew();
 	}
 
+	
+	public void startNew() {
+		fieldChips.clearSelection();
+		categoryCombo.setSelectedIndex(0);
+		titleField.setTextOrPlaceholder("");
+		contentArea.setTextOrPlaceholder("");
+		linkField.setTextOrPlaceholder("");
+		scrollToTop();
+	}
+
+	
+	
+	
 	private JComponent buildTopBar() {
 		JPanel bar = new JPanel(new BorderLayout());
-		bar.setBackground(Color.WHITE);
+		bar.setBackground(UITheme.WHITE);
 		bar.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 235)),
-				new EmptyBorder(12, 16, 12, 16)
-		));
+				BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.RGB_230_230_235),
+				new EmptyBorder(12, 16, 12, 16)));
 
-		JButton back = iconButton(0xE5C4, "뒤로가기");
-		back.addActionListener(e -> {
-			if (onBack != null) onBack.run();
-		});
-
-		JLabel title = new JLabel("질문하기");
-		title.setFont(UITheme.BODY_MED);
-		title.setForeground(UITheme.TEXT);
-
-		RoundedButton register = new RoundedButton("등록");
-		register.setBackground(UITheme.ACCENT_PURPLE);
-		register.setForeground(Color.WHITE);
-		register.setFont(UITheme.BODY_MED);
-		register.addActionListener(e -> onRegister());
-
+		JButton back = iconButton(0xE5C4, "나가기");
+		back.addActionListener(e -> this.onBack.run());
 		JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		left.setOpaque(false);
 		left.add(back);
 
+		topTitleLabel.setFont(UITheme.BODY_MED);
+		topTitleLabel.setForeground(UITheme.TEXT);
+
+		submitBtn.setBackground(UITheme.ACCENT_PURPLE);
+		submitBtn.setForeground(UITheme.WHITE);
+		submitBtn.setFont(UITheme.BODY_MED);
+
 		JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
 		right.setOpaque(false);
-		right.add(register);
+		right.add(submitBtn);
 
 		bar.add(left, BorderLayout.WEST);
-		bar.add(title, BorderLayout.CENTER);
+		bar.add(topTitleLabel, BorderLayout.CENTER);
 		bar.add(right, BorderLayout.EAST);
 		return bar;
 	}
 
 	private JComponent buildBody() {
-		JPanel form = new JPanel();
-		form.setOpaque(false);
-		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-		form.setBorder(new EmptyBorder(16, 18, 24, 18));
+		JPanel root = new JPanel(new BorderLayout());
+		root.setOpaque(false);
 
-		// 제목
-		form.add(card(panel -> {
-			panel.setLayout(new BorderLayout());
-			titleField.setFont(FontKit.medium(22f));
-			titleField.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-			titleField.setBackground(new Color(250, 250, 252));
-			panel.add(titleField, BorderLayout.CENTER);
-		}));
-		form.add(Box.createVerticalStrut(12));
+		TrackWidthPanel wrap = new TrackWidthPanel();
+		wrap.setOpaque(false);
+		wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
+		wrap.setBorder(new EmptyBorder(16, 18, 18, 18));
 
-		// 기본 정보
-		form.add(cardWithTitle("기본 정보", panel -> {
-			panel.setLayout(new GridBagLayout());
-			GridBagConstraints gc = new GridBagConstraints();
-			gc.insets = new Insets(0, 0, 14, 0);
-			gc.anchor = GridBagConstraints.WEST;
-			gc.fill = GridBagConstraints.HORIZONTAL;
-			gc.weightx = 1.0;
-			gc.gridx = 0;
-			gc.gridy = 0;
-			gc.gridwidth = 2;
+		
+		JPanel titleCard = MainUiParts.createCard(14, true);
+		titleCard.setLayout(new BorderLayout());
+		titleField.setFont(FontKit.medium(22f));
+		titleField.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+		titleField.setBackground(UITheme.RGB_250_250_252);
+		titleField.setPreferredSize(new Dimension(10, TITLE_FIELD_H));
+		titleField.setMinimumSize(new Dimension(10, TITLE_FIELD_H));
+		titleField.setMaximumSize(new Dimension(Integer.MAX_VALUE, TITLE_FIELD_H));
+		titleCard.add(titleField, BorderLayout.CENTER);
+		titleCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, TITLE_FIELD_H + 28));
 
-			// 분야
-			JPanel fieldCol = new JPanel();
-			fieldCol.setOpaque(false);
-			fieldCol.setLayout(new BoxLayout(fieldCol, BoxLayout.Y_AXIS));
-			fieldCol.add(leftAligned(rowTitle("분야 *")));
-			fieldCol.add(Box.createVerticalStrut(8));
+		wrap.add(titleCard);
+		wrap.add(Box.createVerticalStrut(12));
 
-			JPanel fieldLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-			fieldLine.setOpaque(false);
-			fieldLine.add(fieldChips);
+		
+		wrap.add(buildMetaCard());
+		wrap.add(Box.createVerticalStrut(12));
 
-			customField.setVisible(false);
-			styleInput(customField);
-			customField.setPreferredSize(new Dimension(220, 38));
-			customField.setMaximumSize(new Dimension(240, 38));
-			fieldLine.add(customField);
-			fieldCol.add(leftAligned(fieldLine));
-			panel.add(leftAligned(fieldCol), gc);
+		
+		wrap.add(buildContentCard());
+		wrap.add(Box.createVerticalStrut(14));
 
-			// 카테고리
-			gc.gridy = 1;
-			gc.gridwidth = 1;
-
-			JPanel catCol = new JPanel();
-			catCol.setOpaque(false);
-			catCol.setLayout(new BoxLayout(catCol, BoxLayout.Y_AXIS));
-			catCol.add(leftAligned(rowTitle("카테고리 *")));
-			catCol.add(Box.createVerticalStrut(8));
-
-			categoryCombo.setFont(UITheme.BODY);
-			categoryCombo.setBorder(BorderFactory.createEmptyBorder());
-			categoryCombo.setBackground(new Color(250, 250, 252));
-			categoryCombo.setRenderer(new DefaultListCellRenderer() {
-				@Override
-				public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-					JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-					l.setBorder(new EmptyBorder(0, 0, 0, 0));
-					return l;
-				}
-			});
-
-			JPanel categoryWrap = new JPanel(new BorderLayout());
-			categoryWrap.setBackground(new Color(250, 250, 252));
-			categoryWrap.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
-					new EmptyBorder(6, 10, 6, 10)
-			));
-			categoryWrap.add(categoryCombo, BorderLayout.CENTER);
-			categoryWrap.setPreferredSize(new Dimension(420, 38));
-			categoryWrap.setMaximumSize(new Dimension(420, 38));
-			catCol.add(leftAligned(categoryWrap));
-			panel.add(leftAligned(catCol), gc);
-
-			// (선택) 업로드 링크
-			gc.gridy = 2;
-			gc.gridwidth = 2;
-			gc.insets = new Insets(0, 0, 0, 0);
-			JPanel linkCol = new JPanel();
-			linkCol.setOpaque(false);
-			linkCol.setLayout(new BoxLayout(linkCol, BoxLayout.Y_AXIS));
-			linkCol.add(leftAligned(rowTitle("업로드 링크 (선택)")));
-			linkCol.add(Box.createVerticalStrut(8));
-			styleInput(linkField);
-			linkCol.add(leftAligned(linkField));
-			panel.add(leftAligned(linkCol), gc);
-		}));
-		form.add(Box.createVerticalStrut(12));
-
-		// 질문 내용
-		form.add(cardWithTitle("질문 내용", panel -> {
-			panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-
-			questionArea.setFont(UITheme.BODY);
-			questionArea.setBackground(new Color(250, 250, 252));
-			questionArea.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
-					new EmptyBorder(10, 10, 10, 10)
-			));
-
-			// 글자수 제한
-			((AbstractDocument) questionArea.getDocument()).setDocumentFilter(new LimitFilter(MAX_CHARS));
-
-			JScrollPane sp = new JScrollPane(questionArea);
-			sp.setBorder(BorderFactory.createEmptyBorder());
-			sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-			sp.setPreferredSize(new Dimension(0, 220));
-			panel.add(leftAligned(sp));
-			panel.add(Box.createVerticalStrut(8));
-
-			counterLabel.setFont(UITheme.CAPTION);
-			counterLabel.setForeground(new Color(130, 130, 140));
-			JPanel counterRow = new JPanel(new BorderLayout());
-			counterRow.setOpaque(false);
-			counterRow.add(counterLabel, BorderLayout.EAST);
-			panel.add(leftAligned(counterRow));
-		}));
-
-		JScrollPane rootScroll = new JScrollPane(form);
-		rootScroll.setBorder(BorderFactory.createEmptyBorder());
-		rootScroll.getVerticalScrollBar().setUnitIncrement(16);
-		rootScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-		rootScroll.getViewport().setBackground(UITheme.BG);
-		return rootScroll;
+		scroll = new JScrollPane(wrap);
+		scroll.setBorder(null);
+		scroll.setOpaque(false);
+		scroll.getViewport().setOpaque(false);
+		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		scroll.getVerticalScrollBar().setUnitIncrement(16);
+		root.add(scroll, BorderLayout.CENTER);
+		return root;
 	}
 
-	private void wireEvents() {
-		fieldChips.setOnSelectionChanged(() -> {
-			String selected = fieldChips.getSelectedText();
-			boolean isCustom = Objects.equals(selected, "기타");
-			customField.setVisible(isCustom);
-			if (!isCustom) customField.setTextOrPlaceholder("");
-			revalidate();
-			repaint();
-			fieldChips.requestFocusInWindow();
-		});
+	private JComponent buildMetaCard() {
+		JPanel body = new JPanel();
+		body.setOpaque(false);
+		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-		questionArea.getDocument().addDocumentListener(new DocumentListener() {
-			@Override public void insertUpdate(DocumentEvent e) { updateCounter(); }
-			@Override public void removeUpdate(DocumentEvent e) { updateCounter(); }
-			@Override public void changedUpdate(DocumentEvent e) { updateCounter(); }
+		
+		body.add(leftAligned(rowTitle("분야 *")));
+		body.add(Box.createVerticalStrut(8));
+		JPanel fieldRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+		fieldRow.setOpaque(false);
+		fieldRow.add(fieldChips);
+		body.add(leftAligned(fieldRow));
+		body.add(Box.createVerticalStrut(14));
+
+		
+		body.add(buildCategoryCell());
+		body.add(Box.createVerticalStrut(14));
+
+		
+		body.add(leftAligned(rowTitle("업로드 링크 (선택)")));
+		body.add(Box.createVerticalStrut(8));
+		styleInput(linkField);
+		linkField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+		body.add(leftAligned(linkField));
+
+		return MainUiParts.createCardWithTitle("기본 정보", 14, body);
+	}
+
+	private JComponent buildCategoryCell() {
+		JPanel col = new JPanel();
+		col.setOpaque(false);
+		col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
+		col.add(leftAligned(rowTitle("카테고리 *")));
+		col.add(Box.createVerticalStrut(8));
+
+		categoryCombo.setFont(UITheme.BODY);
+		categoryCombo.setBorder(BorderFactory.createEmptyBorder());
+		categoryCombo.setBackground(UITheme.RGB_250_250_252);
+		categoryCombo.setPrototypeDisplayValue("콘텐츠 제작 / 크리에이터 활동");
+		categoryCombo.setMaximumRowCount(12);
+		categoryCombo.setFocusable(false);
+
+		JPanel wrap = new JPanel(new BorderLayout());
+		wrap.setBackground(UITheme.RGB_250_250_252);
+		wrap.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
+				new EmptyBorder(6, 10, 6, 10)));
+		wrap.add(categoryCombo, BorderLayout.CENTER);
+		wrap.setPreferredSize(new Dimension(META_COMBO_W, 38));
+		wrap.setMaximumSize(new Dimension(META_COMBO_W, 38));
+		col.add(leftAligned(wrap));
+		return col;
+	}
+
+	private JComponent buildContentCard() {
+		JPanel body = new JPanel(new BorderLayout());
+		body.setOpaque(false);
+		contentArea.setFont(UITheme.BODY);
+		contentArea.setBackground(UITheme.RGB_250_250_252);
+		contentArea.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+
+		JScrollPane areaScroll = new JScrollPane(contentArea);
+		areaScroll.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
+				BorderFactory.createEmptyBorder()));
+		areaScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		areaScroll.getVerticalScrollBar().setUnitIncrement(16);
+		areaScroll.setPreferredSize(new Dimension(10, 260));
+
+		body.add(areaScroll, BorderLayout.CENTER);
+		return MainUiParts.createCardWithTitle("질문 내용", 14, body);
+	}
+
+	
+	
+	
+	private void wireEvents(JFrame owner) {
+		submitBtn.addActionListener(e -> onSubmitRequested());
+
+		
+		titleField.addActionListener(e -> onSubmitRequested());
+
+		
+		contentArea.getInputMap().put(KeyStroke.getKeyStroke("ctrl ENTER"), "submit");
+		contentArea.getInputMap().put(KeyStroke.getKeyStroke("meta ENTER"), "submit");
+		contentArea.getActionMap().put("submit", new AbstractAction() {
+			@Override public void actionPerformed(java.awt.event.ActionEvent e) {
+				onSubmitRequested();
+			}
 		});
 	}
 
-	private void updateCounter() {
-		int len = questionArea.getEffectiveText().length();
-		counterLabel.setText(len + " / " + MAX_CHARS);
-		counterLabel.setForeground(len >= MAX_CHARS ? new Color(150, 110, 110) : new Color(130, 130, 140));
+	private void onSubmitRequested() {
+		try {
+			controller.submit(new QuestionWriteController.QuestionWriteRequest(
+					titleField.getEffectiveText(),
+					contentArea.getEffectiveText(),
+					selectedFieldOrDefault(),
+					Objects.toString(categoryCombo.getSelectedItem(), "기타"),
+					linkField.getEffectiveText(),
+					null
+			));
+			JOptionPane.showMessageDialog(this, "등록 완료");
+			this.onRegistered.run();
+		} catch (ValidationException ve) {
+			JOptionPane.showMessageDialog(this, ve.getMessage());
+			if (ve.field == ValidationException.Field.TITLE) titleField.requestFocusInWindow();
+			else if (ve.field == ValidationException.Field.CONTENT) contentArea.requestFocusInWindow();
+		} catch (Exception ex) {
+			JOptionPane.showMessageDialog(this, "등록에 실패했어요. 잠시 후 다시 시도해 주세요.");
+		}
 	}
 
-	private void onRegister() {
-		String title = titleField.getEffectiveText().trim();
-		String field = resolveField();
-		String category = (String) categoryCombo.getSelectedItem();
-		String question = questionArea.getEffectiveText().trim();
-
-		if (title.isEmpty()) {
-			JOptionPane.showMessageDialog(this, "제목을 입력해 주세요.");
-			titleField.requestFocus();
-			return;
-		}
-		if (field == null || field.isBlank()) {
-			JOptionPane.showMessageDialog(this, "분야를 선택해 주세요.");
-			return;
-		}
-		if (Objects.equals(fieldChips.getSelectedText(), "기타") && customField.getEffectiveText().trim().isEmpty()) {
-			JOptionPane.showMessageDialog(this, "기타 분야를 입력해 주세요.");
-			customField.requestFocus();
-			return;
-		}
-		if (category == null || category.isBlank()) {
-			JOptionPane.showMessageDialog(this, "카테고리를 선택해 주세요.");
-			return;
-		}
-		if (question.isEmpty()) {
-			JOptionPane.showMessageDialog(this, "질문 내용을 입력해 주세요.");
-			questionArea.requestFocus();
-			return;
-		}
-
-		// TODO (DB) 질문 등록 INSERT (공개 고정)
-		JOptionPane.showMessageDialog(this, "질문 등록 완료!");
-		if (onRegistered != null) onRegistered.run();
+	private String selectedFieldOrDefault() {
+		String v = fieldChips.getSelectedLabel();
+		if (v == null || v.isBlank()) return "기타";
+		return v;
 	}
 
-	private String resolveField() {
-		String selected = fieldChips.getSelectedText();
-		if (selected == null) return null;
-		if (Objects.equals(selected, "기타")) {
-			String v = customField.getEffectiveText().trim();
-			return v.isEmpty() ? "기타" : v;
-		}
-		return selected;
+	private void scrollToTop() {
+		if (scroll == null) return;
+		SwingUtilities.invokeLater(() -> {
+			JViewport vp = scroll.getViewport();
+			if (vp != null) vp.setViewPosition(new Point(0, 0));
+		});
 	}
 
-	// ===== UI helpers (WriteLogView와 동일 톤) =====
-	private JButton iconButton(int materialCodePoint, String tooltip) {
-		JButton b = new JButton(new String(Character.toChars(materialCodePoint)));
+	
+	
+	
+	private JButton iconButton(int codePoint, String tooltip) {
+		JButton b = new JButton(MainUiParts.glyphIcon(codePoint, 20f, UITheme.RGB_120_120_130));
 		b.setToolTipText(tooltip);
-		b.setFont(FontKit.materialIcon(22f));
-		b.setForeground(new Color(110, 110, 125));
-		b.setBackground(Color.WHITE);
-		b.setBorder(new EmptyBorder(6, 6, 6, 6));
+		b.setBorder(new EmptyBorder(8, 8, 8, 8));
 		b.setFocusPainted(false);
 		b.setContentAreaFilled(false);
 		b.setOpaque(false);
@@ -351,72 +307,107 @@ public class QuestionWriteView extends JPanel {
 	private void styleInput(JTextField tf) {
 		tf.setFont(UITheme.BODY);
 		tf.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
-				new EmptyBorder(8, 10, 8, 10)
-		));
-		tf.setBackground(new Color(250, 250, 252));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true),
+				new EmptyBorder(8, 10, 8, 10)));
+		tf.setBackground(UITheme.RGB_250_250_252);
 	}
 
-	private JPanel card(PanelBuilder builder) {
-		JPanel card = new JPanel();
-		card.setBackground(Color.WHITE);
-		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true),
-				new EmptyBorder(14, 14, 14, 14)
-		));
-		builder.build(card);
-		return card;
+	
+	
+	
+	private static class TrackWidthPanel extends JPanel implements Scrollable {
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) { return 16; }
+		@Override public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) { return 80; }
+		@Override public boolean getScrollableTracksViewportWidth() { return true; }
+		@Override public boolean getScrollableTracksViewportHeight() { return false; }
 	}
 
-	private JPanel cardWithTitle(String title, PanelBuilder builder) {
-		return card(panel -> {
-			panel.setLayout(new BorderLayout());
-			JLabel t = new JLabel(title);
-			t.setFont(UITheme.BODY_MED);
-			t.setForeground(UITheme.TEXT);
+	static class PlaceholderTextField extends JTextField {
+		private final String placeholder;
+		private boolean showingPlaceholder = true;
 
-			JPanel top = new JPanel(new BorderLayout());
-			top.setOpaque(false);
-			top.add(t, BorderLayout.WEST);
-			panel.add(top, BorderLayout.NORTH);
-
-			JPanel body = new JPanel();
-			body.setOpaque(false);
-			body.setBorder(new EmptyBorder(12, 0, 0, 0));
-			builder.build(body);
-			panel.add(body, BorderLayout.CENTER);
-		});
-	}
-
-	private interface PanelBuilder {
-		void build(JPanel panel);
-	}
-
-	/** 글자수 제한용 DocumentFilter */
-	static class LimitFilter extends DocumentFilter {
-		private final int max;
-		LimitFilter(int max) { this.max = max; }
-
-		@Override
-		public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
-			if (string == null) return;
-			int cur = fb.getDocument().getLength();
-			int over = (cur + string.length()) - max;
-			String s = over > 0 ? string.substring(0, Math.max(0, string.length() - over)) : string;
-			if (!s.isEmpty()) super.insertString(fb, offset, s, attr);
+		PlaceholderTextField(String placeholder) {
+			this.placeholder = placeholder;
+			setText(placeholder);
+			setForeground(UITheme.RGB_160_160_170);
+			setBorder(new EmptyBorder(10, 10, 10, 10));
+			addFocusListener(new java.awt.event.FocusAdapter() {
+				public void focusGained(java.awt.event.FocusEvent e) {
+					if (showingPlaceholder) {
+						setText("");
+						setForeground(UITheme.TEXT);
+						showingPlaceholder = false;
+					}
+				}
+				public void focusLost(java.awt.event.FocusEvent e) {
+					if (getText().trim().isEmpty()) resetToPlaceholder();
+				}
+			});
 		}
 
-		@Override
-		public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
-			if (text == null) {
-				super.replace(fb, offset, length, null, attrs);
-				return;
+		String getEffectiveText() {
+			return showingPlaceholder ? "" : getText();
+		}
+
+		void resetToPlaceholder() {
+			showingPlaceholder = true;
+			setText(placeholder);
+			setForeground(UITheme.RGB_160_160_170);
+		}
+
+		void setTextOrPlaceholder(String v) {
+			if (v == null || v.trim().isEmpty()) resetToPlaceholder();
+			else {
+				showingPlaceholder = false;
+				setText(v);
+				setForeground(UITheme.TEXT);
 			}
-			int cur = fb.getDocument().getLength();
-			int next = cur - length + text.length();
-			int over = next - max;
-			String s = over > 0 ? text.substring(0, Math.max(0, text.length() - over)) : text;
-			super.replace(fb, offset, length, s, attrs);
+		}
+	}
+
+	static class PlaceholderTextArea extends JTextArea {
+		private final String placeholder;
+		private boolean showingPlaceholder = true;
+
+		PlaceholderTextArea(String placeholder) {
+			this.placeholder = placeholder;
+			setLineWrap(true);
+			setWrapStyleWord(true);
+			setText(placeholder);
+			setForeground(UITheme.RGB_160_160_170);
+			setBorder(new EmptyBorder(10, 10, 10, 10));
+			addFocusListener(new java.awt.event.FocusAdapter() {
+				public void focusGained(java.awt.event.FocusEvent e) {
+					if (showingPlaceholder) {
+						setText("");
+						setForeground(UITheme.TEXT);
+						showingPlaceholder = false;
+					}
+				}
+				public void focusLost(java.awt.event.FocusEvent e) {
+					if (getText().trim().isEmpty()) resetToPlaceholder();
+				}
+			});
+		}
+
+		String getEffectiveText() {
+			return showingPlaceholder ? "" : getText();
+		}
+
+		void resetToPlaceholder() {
+			showingPlaceholder = true;
+			setText(placeholder);
+			setForeground(UITheme.RGB_160_160_170);
+		}
+
+		void setTextOrPlaceholder(String v) {
+			if (v == null || v.trim().isEmpty()) resetToPlaceholder();
+			else {
+				showingPlaceholder = false;
+				setText(v);
+				setForeground(UITheme.TEXT);
+			}
 		}
 	}
 }

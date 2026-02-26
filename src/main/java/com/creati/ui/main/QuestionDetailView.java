@@ -1,7 +1,6 @@
 package com.creati.ui.main;
 
 import com.creati.model.LogPost;
-import com.creati.model.LogStatus;
 import com.creati.ui.components.Chip;
 import com.creati.ui.components.RoundedButton;
 import com.creati.util.FontKit;
@@ -14,29 +13,33 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 
-// [COLLAB] NOTE: Optional sections should be hidden when empty.
 
-public class LogDetailView extends JPanel {
+public class QuestionDetailView extends JPanel {
 
 	
 	private static final int SECTION_BODY_INDENT = 8;
 
 	
-	private static final String DUMMY_TEXT = "아직 작성되지 않았어요. 다음 기록에서 채워볼까요?";
-	private static final String DUMMY_PLAN = "다음에는 어떤 방식으로 시도해볼까요?";
-
-	
 	private final Runnable onBack;
-	private LogPost boundPost;
-	private final Runnable onEdit;
 	private final Runnable onDelete;
+	private final Runnable onEdit; 
+
+	private LogPost boundPost;
+
+	private String postAuthor = ""; // DB(TODO): 원글 작성자 닉네임/ID
 
 	
-	private String postAuthor = "나"; // DB(TODO): 원글 작성자 닉네임/ID
+	private JLabel empathyMini;
+	private JLabel cheerMini;
+	private JLabel praiseMini;
+	private JLabel comfortMini;
+	private JLabel retryMini;
+
+	
+	private JLabel commentCountInline;
 
 	
 	private final JLabel titleLabel = new JLabel();
@@ -46,7 +49,6 @@ public class LogDetailView extends JPanel {
 	private final JLabel commentsCountLabel = new JLabel("0");
 	private final Chip fieldChip = new Chip();
 	private final Chip categoryChip = new Chip();
-	private final Chip statusChip = new Chip();
 
 	
 	private final RoundedButton backBtn = new RoundedButton("뒤로가기");
@@ -59,50 +61,9 @@ public class LogDetailView extends JPanel {
 	
 	private JPanel contentCard;
 	private JPanel socialCard;
-	private JPanel secExpectation;
-	private JPanel secResult;
-	private JPanel secFactors;
-	private JPanel secProcess;
-	private JPanel secPlanGap;
-	private JPanel secLearning;
-	private JPanel secGrowth;
+	private JPanel secQuestion;
 	private JPanel secLink;
-	private JPanel secSocial;
-
-	
-	private JComponent divAfterExpectation;
-	private JComponent divAfterResult;
-	private JComponent divAfterFactors;
-	private JComponent divAfterProcess;
-	private JComponent divAfterPlanGap;
-	private JComponent divAfterLearning;
-	private JComponent divAfterGrowth;
-	private JComponent divAfterLink;
-
-	
-	private JTextArea expectationArea;
-
-	private Chip moodChip; 
-	private JPanel goodChipsWrap;
-	private JTextArea painArea;
-
-	private JPanel factorsChipsWrap;
-
-	private JTextArea processArea;
-
-	private Chip planGapChip;
-	private JPanel planGapDetailWrap; 
-	private JTextArea planGapDetailArea;
-
-	private JTextArea learningArea;
-
-	private JPanel nextAdjustWrap;
-	private JLabel nextAdjustFallback;
-	private JLabel nextPlanLine;
-	private JTextArea retryConditionArea;
-
-	private final JLabel linkLabel = new JLabel();
-	private JLabel linkPointLabel;
+	private JComponent divAfterQuestion;
 
 	
 	private JPanel reactionRow;
@@ -110,64 +71,35 @@ public class LogDetailView extends JPanel {
 	private JTextField commentField;
 	private RoundedButton commentSubmitBtn;
 
-	
-	private JLabel empathyMini;
-	private JLabel cheerMini;
-	private JLabel praiseMini;
-	private JLabel comfortMini;
-	private JLabel retryMini;
+	private final JTextArea questionArea = makeArea();
+	private final JLabel linkLabel = new JLabel();
 
-	
-	private JLabel commentCountInline;
-
-	public LogDetailView(Runnable onBack, Runnable onEdit) {
-		this(onBack, onEdit, null);
-	}
-
-	public LogDetailView(Runnable onBack, Runnable onEdit, Runnable onDelete) {
-		this.onBack = (onBack == null) ? () -> { } : onBack;
-		this.onEdit = (onEdit == null) ? () -> JOptionPane.showMessageDialog(this, "수정 기능은 준비 중이에요.") : onEdit;
-		this.onDelete = (onDelete == null) ? this::confirmDelete : onDelete;
-
+	public QuestionDetailView(Runnable onBack, Runnable onEdit, Runnable onDelete) {
 		UITheme.ensureInit();
 		FontKit.init();
 
-		
+		this.onBack = (onBack == null) ? () -> {
+		} : onBack;
+		this.onEdit = onEdit; 
+		this.onDelete = (onDelete == null) ? this::confirmDelete : onDelete;
+
 		configureDetailChip(fieldChip);
 		configureDetailChip(categoryChip);
-		configureDetailChip(statusChip);
-
-		initLinkLabel();
 
 		setOpaque(false);
 		setLayout(new BorderLayout());
+
+		initLinkLabel();
+
 		add(buildTopBar(), BorderLayout.NORTH);
 		add(buildBody(), BorderLayout.CENTER);
 	}
 
 	private static void configureDetailChip(Chip c) {
-		if (c == null) return;
+		if (c == null)
+			return;
 		c.setFont(FontKit.medium(12.5f));
 		c.setSizing(12, 5, 26);
-	}
-
-	private static String mi(int codePointHex) {
-		return new String(Character.toChars(codePointHex));
-	}
-
-	private void initLinkLabel() {
-		linkLabel.setFont(FontKit.regular(14f));
-		linkLabel.setForeground(UITheme.ACCENT_BLUE);
-		linkLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		linkLabel.setAlignmentX(LEFT_ALIGNMENT);
-		linkLabel.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent e) {
-				String url = stripHtml(linkLabel.getText());
-				if (url.isEmpty()) return;
-				openLink(url);
-			}
-		});
 	}
 
 	private JComponent buildTopBar() {
@@ -184,16 +116,13 @@ public class LogDetailView extends JPanel {
 		left.setBorder(new EmptyBorder(0, 10, 0, 0));
 		left.add(backBtn);
 
-		styleTopButton(editBtn, UITheme.WHITE, UITheme.DARK_TEXT, false);
-		styleTopButton(deleteBtn, UITheme.DANGER_BG, UITheme.ERROR_DARK, false);
-
-		editBtn.addActionListener(e -> onEdit.run());
-		deleteBtn.addActionListener(e -> onDelete.run());
-
+		
 		JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
 		right.setOpaque(false);
 		right.setBorder(new EmptyBorder(0, 0, 0, 25));
-		right.add(editBtn);
+
+		styleTopButton(deleteBtn, UITheme.DANGER_BG, UITheme.ERROR_DARK, false);
+		deleteBtn.addActionListener(e -> this.onDelete.run());
 		right.add(deleteBtn);
 
 		JPanel wrap = new JPanel(new BorderLayout());
@@ -219,20 +148,29 @@ public class LogDetailView extends JPanel {
 		page.setBorder(new EmptyBorder(10, 20, 16, 20));
 		page.setLayout(new BoxLayout(page, BoxLayout.Y_AXIS));
 
+		
 		JComponent titleCard = buildTitleCard();
 		titleCard.setAlignmentX(LEFT_ALIGNMENT);
-		page.add(titleCard);
-		page.add(Box.createVerticalStrut(10));
 
+		
+		Dimension tPref = titleCard.getPreferredSize();
+		titleCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, tPref.height));
+
+		
 		contentCard = buildContentCard();
 		contentCard.setAlignmentX(LEFT_ALIGNMENT);
-		page.add(contentCard);
 
-		page.add(Box.createVerticalStrut(10));
-
+		
 		socialCard = buildSocialCard();
 		socialCard.setAlignmentX(LEFT_ALIGNMENT);
+
+		page.add(titleCard);
+		page.add(Box.createVerticalStrut(10));
+		page.add(contentCard);
+		page.add(Box.createVerticalStrut(10));
 		page.add(socialCard);
+
+		page.add(Box.createVerticalGlue());
 
 		scroll = new JScrollPane(page);
 		scroll.setBorder(null);
@@ -248,8 +186,7 @@ public class LogDetailView extends JPanel {
 		card.setLayout(new BorderLayout());
 		card.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
-				new EmptyBorder(18, 18, 18, 18)
-		));
+				new EmptyBorder(18, 18, 18, 18)));
 
 		titleLabel.setFont(FontKit.extraBold(26f));
 		titleLabel.setForeground(UITheme.TEXT);
@@ -259,16 +196,12 @@ public class LogDetailView extends JPanel {
 		metaLabel.setForeground(UITheme.TEXT_DISABLED);
 		metaLabel.setAlignmentX(LEFT_ALIGNMENT);
 
-		fieldChip.setFont(FontKit.medium(12.5f));
-		categoryChip.setFont(FontKit.medium(12.5f));
-		statusChip.setFont(FontKit.medium(12.5f));
-
 		JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
 		chips.setOpaque(false);
 		chips.setAlignmentX(LEFT_ALIGNMENT);
+
 		chips.add(fieldChip);
 		chips.add(categoryChip);
-		chips.add(statusChip);
 
 		JPanel metaRow = new JPanel(new BorderLayout());
 		metaRow.setOpaque(false);
@@ -280,6 +213,7 @@ public class LogDetailView extends JPanel {
 		head.setOpaque(false);
 		head.setLayout(new BoxLayout(head, BoxLayout.Y_AXIS));
 		head.setAlignmentX(LEFT_ALIGNMENT);
+
 		head.add(chips);
 		head.add(Box.createVerticalStrut(10));
 		head.add(titleLabel);
@@ -321,186 +255,37 @@ public class LogDetailView extends JPanel {
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
 		card.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
-				new EmptyBorder(18, 18, 18, 18)
-		));
+				new EmptyBorder(18, 18, 18, 18)));
 
-		
-		expectationArea = makeArea();
-		secExpectation = sectionBlock("기대했던 점", expectationArea);
-		card.add(secExpectation);
-		divAfterExpectation = sectionDivider();
-		card.add(divAfterExpectation);
+		secQuestion = sectionBlock("질문 내용", questionArea);
+		card.add(secQuestion);
 
-		
-		JPanel resultBody = new JPanel();
-		resultBody.setOpaque(false);
-		resultBody.setLayout(new BoxLayout(resultBody, BoxLayout.Y_AXIS));
+		divAfterQuestion = sectionDivider();
+		card.add(divAfterQuestion);
 
-		moodChip = new Chip();
-		configureDetailChip(moodChip);
-		moodChip.setFont(FontKit.medium(12.5f));
-		applyMoodChip(moodChip, "");
-
-		JPanel moodWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-		moodWrap.setOpaque(false);
-		moodWrap.setAlignmentX(LEFT_ALIGNMENT);
-		moodWrap.add(moodChip);
-
-		resultBody.add(moodWrap);
-		resultBody.add(Box.createVerticalStrut(12));
-
-		goodChipsWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-		goodChipsWrap.setOpaque(false);
-		goodChipsWrap.setAlignmentX(LEFT_ALIGNMENT);
-		resultBody.add(goodChipsWrap);
-
-		painArea = makeArea();
-		painArea.setBorder(new EmptyBorder(10, 0, 0, 0));
-		painArea.setAlignmentX(LEFT_ALIGNMENT);
-		resultBody.add(painArea);
-
-		secResult = sectionBlock("결과 인식", resultBody);
-		card.add(secResult);
-		divAfterResult = sectionDivider();
-		card.add(divAfterResult);
-
-		
-		factorsChipsWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-		factorsChipsWrap.setOpaque(false);
-		factorsChipsWrap.setAlignmentX(LEFT_ALIGNMENT);
-		secFactors = sectionBlock("영향 요인", factorsChipsWrap);
-		card.add(secFactors);
-		divAfterFactors = sectionDivider();
-		card.add(divAfterFactors);
-
-		// [COLLAB] 행동 과정 (필수: 값 없어도 더미 표시)
-		processArea = makeArea();
-		secProcess = sectionBlock("행동 과정", processArea);
-		card.add(secProcess);
-		divAfterProcess = sectionDivider();
-		card.add(divAfterProcess);
-
-		
-		JPanel planBody = new JPanel();
-		planBody.setOpaque(false);
-		planBody.setLayout(new BoxLayout(planBody, BoxLayout.Y_AXIS));
-
-		planGapChip = new Chip();
-		configureDetailChip(planGapChip);
-		planGapChip.setFont(FontKit.medium(12.5f));
-		planGapChip.setAlignmentX(LEFT_ALIGNMENT);
-		planBody.add(planGapChip);
-
-		planGapDetailWrap = new JPanel();
-		planGapDetailWrap.setOpaque(false);
-		planGapDetailWrap.setLayout(new BoxLayout(planGapDetailWrap, BoxLayout.Y_AXIS));
-		planGapDetailWrap.setBorder(new EmptyBorder(14, 0, 0, 0));
-
-		JLabel detailTitle = new JLabel("차이 내용");
-		detailTitle.setFont(FontKit.semiBold(13.5f));
-		detailTitle.setForeground(UITheme.DARK_TEXT);
-		detailTitle.setAlignmentX(LEFT_ALIGNMENT);
-
-		planGapDetailArea = makeArea();
-		planGapDetailArea.setBorder(new EmptyBorder(8, 0, 0, 0));
-		planGapDetailArea.setAlignmentX(LEFT_ALIGNMENT);
-
-		planGapDetailWrap.add(detailTitle);
-		planGapDetailWrap.add(planGapDetailArea);
-		planBody.add(planGapDetailWrap);
-
-		secPlanGap = sectionBlock("계획 차이", planBody);
-		card.add(secPlanGap);
-		divAfterPlanGap = sectionDivider();
-		card.add(divAfterPlanGap);
-
-		// [COLLAB] 회고 (필수: 값 없어도 더미 표시)
-		learningArea = makeArea();
-		secLearning = sectionBlock("회고", learningArea);
-		card.add(secLearning);
-		divAfterLearning = sectionDivider();
-		card.add(divAfterLearning);
-
-		// [COLLAB] 성장 설계 (필수: 최소 라인 더미 표시)
-		JPanel growthBody = new JPanel();
-		growthBody.setOpaque(false);
-		growthBody.setLayout(new BoxLayout(growthBody, BoxLayout.Y_AXIS));
-
-		JLabel a = new JLabel("다음에 조정해 보고 싶은 부분");
-		a.setFont(FontKit.semiBold(13.5f));
-		a.setForeground(UITheme.DARK_TEXT);
-		a.setAlignmentX(LEFT_ALIGNMENT);
-		growthBody.add(a);
-		growthBody.add(Box.createVerticalStrut(10));
-
-		nextAdjustWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-		nextAdjustWrap.setOpaque(false);
-		nextAdjustWrap.setAlignmentX(LEFT_ALIGNMENT);
-
-		nextAdjustFallback = new JLabel("이번에는 현재 방식을 유지할래요.");
-		nextAdjustFallback.setFont(FontKit.regular(14f));
-		nextAdjustFallback.setForeground(UITheme.TEXT_DISABLED);
-		nextAdjustFallback.setAlignmentX(LEFT_ALIGNMENT);
-
-		growthBody.add(nextAdjustWrap);
-		growthBody.add(nextAdjustFallback);
-		growthBody.add(Box.createVerticalStrut(16));
-
-		JLabel b = new JLabel("다음 시도 계획");
-		b.setFont(FontKit.semiBold(13.5f));
-		b.setForeground(UITheme.DARK_TEXT);
-		b.setAlignmentX(LEFT_ALIGNMENT);
-		growthBody.add(b);
-		growthBody.add(Box.createVerticalStrut(8));
-
-		nextPlanLine = new JLabel(" ");
-		nextPlanLine.setFont(FontKit.regular(14f));
-		nextPlanLine.setForeground(UITheme.DARK_TEXT);
-		nextPlanLine.setAlignmentX(LEFT_ALIGNMENT);
-		growthBody.add(nextPlanLine);
-
-		retryConditionArea = makeArea();
-		retryConditionArea.setBorder(new EmptyBorder(12, 0, 0, 0));
-		retryConditionArea.setAlignmentX(LEFT_ALIGNMENT);
-		growthBody.add(retryConditionArea);
-
-		secGrowth = sectionBlock("성장 설계", growthBody);
-		card.add(secGrowth);
-		divAfterGrowth = sectionDivider();
-		card.add(divAfterGrowth);
-
-		
-		JPanel linkBody = new JPanel();
-		linkBody.setOpaque(false);
-		linkBody.setLayout(new BoxLayout(linkBody, BoxLayout.Y_AXIS));
-
-		linkBody.add(linkLabel);
-
-		linkPointLabel = new JLabel();
-		linkPointLabel.setFont(FontKit.regular(13f));
-		linkPointLabel.setForeground(UITheme.TEXT_DISABLED);
-		linkPointLabel.setBorder(new EmptyBorder(8, 0, 0, 0));
-		linkPointLabel.setAlignmentX(LEFT_ALIGNMENT);
-		linkBody.add(linkPointLabel);
-
-		secLink = sectionBlock("참고 링크", linkBody);
+		secLink = sectionBlock("업로드 링크", linkLabel);
 		card.add(secLink);
 
-		return card;
-	}
+		secLink.setVisible(false);
+		divAfterQuestion.setVisible(false);
 
-	private JPanel buildSocialCard() {
-		JPanel card = cardBase();
-		card.setLayout(new BorderLayout());
-		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
-				new EmptyBorder(18, 18, 18, 18)
-		));
-		card.add(buildSocialBlock(), BorderLayout.CENTER);
 		return card;
 	}
 
 	
+	private JPanel buildSocialCard() {
+		JPanel card = cardBase();
+		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+		card.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
+				new EmptyBorder(18, 18, 18, 18)));
+
+		JPanel social = buildSocialBlock();
+		social.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(social);
+		return card;
+	}
+
 	private JPanel buildSocialBlock() {
 		JPanel wrap = new JPanel();
 		wrap.setOpaque(false);
@@ -528,11 +313,11 @@ public class LogDetailView extends JPanel {
 		comfortMini = new JLabel("0");
 		retryMini = new JLabel("0");
 
-		reactHeadLine.add(buildMiniCount(0xE87D, empathyMini)); 
-		reactHeadLine.add(buildMiniCount(0xE80E, cheerMini));   
-		reactHeadLine.add(buildMiniCount(0xEA23, praiseMini));  
-		reactHeadLine.add(buildMiniCount(0xE7F2, comfortMini)); 
-		reactHeadLine.add(buildMiniCount(0xE5D5, retryMini));   
+		reactHeadLine.add(buildMiniCount(0xE87D, empathyMini));  
+		reactHeadLine.add(buildMiniCount(0xE80E, cheerMini));    
+		reactHeadLine.add(buildMiniCount(0xEA23, praiseMini));   
+		reactHeadLine.add(buildMiniCount(0xE7F2, comfortMini));  
+		reactHeadLine.add(buildMiniCount(0xE5D5, retryMini));    
 
 		wrap.add(reactHeadLine);
 		wrap.add(Box.createVerticalStrut(10));
@@ -556,6 +341,7 @@ public class LogDetailView extends JPanel {
 		commentTitle.setForeground(UITheme.DARK_TEXT);
 		commentHeadLine.add(commentTitle);
 
+		
 		JLabel commentDot = new JLabel("·");
 		commentDot.setFont(FontKit.regular(13f));
 		commentDot.setForeground(UITheme.TEXT_DISABLED);
@@ -576,8 +362,7 @@ public class LogDetailView extends JPanel {
 		commentField.setPreferredSize(new Dimension(200, 36));
 		commentField.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(UITheme.RGB_235_235_242),
-				new EmptyBorder(8, 10, 8, 10)
-		));
+				new EmptyBorder(8, 10, 8, 10)));
 
 		commentSubmitBtn = new RoundedButton("등록");
 		commentSubmitBtn.setFont(FontKit.medium(13.5f));
@@ -634,6 +419,7 @@ public class LogDetailView extends JPanel {
 		comfortMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.COMFORT)));
 		retryMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.RETRY)));
 
+		
 		if (commentCountInline != null) {
 			commentCountInline.setText(String.valueOf(Services.SOCIAL.getCommentCount(boundPost.id)));
 		}
@@ -652,6 +438,41 @@ public class LogDetailView extends JPanel {
 		refreshReactionSelection();
 		refreshSocialCounts();
 		refreshReactionSummary();
+	}
+
+	private JButton makeReactionButton(int iconCodePoint, String label, SocialStore.ReactionType type) {
+		String user = "나"; // TODO(DB)
+
+		JLabel icon = new JLabel(mi(iconCodePoint));
+		icon.setFont(FontKit.materialIcon(14f));
+		icon.setForeground(UITheme.DARK_TEXT);
+
+		JLabel text = new JLabel(label);
+		text.setFont(FontKit.medium(13f));
+		text.setForeground(UITheme.DARK_TEXT);
+
+		RoundedButton b = new RoundedButton("");
+		b.setLayout(new FlowLayout(FlowLayout.LEFT, 6, 0));
+		b.setBorder(new EmptyBorder(6, 12, 6, 12));
+		b.setFocusPainted(false);
+		b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+		applyGrayStyle(b, type, false);
+
+		b.add(icon);
+		b.add(text);
+
+		b.addActionListener(e -> {
+			if (boundPost == null) return;
+
+			Services.SOCIAL.toggleReaction(boundPost.id, type);
+
+			refreshReactionSelection();
+			refreshSocialCounts();
+			refreshReactionSummary();
+		});
+
+		return b;
 	}
 
 	private void refreshReactionSelection() {
@@ -693,44 +514,8 @@ public class LogDetailView extends JPanel {
 		b.setForeground(UITheme.DARK_TEXT);
 	}
 
-	private JButton makeReactionButton(int iconCodePoint, String label, SocialStore.ReactionType type) {
-		String user = "나"; // TODO(DB)
-
-		JLabel icon = new JLabel(mi(iconCodePoint));
-		icon.setFont(FontKit.materialIcon(14f));
-		icon.setForeground(UITheme.DARK_TEXT);
-
-		JLabel text = new JLabel(label);
-		text.setFont(FontKit.medium(13f));
-		text.setForeground(UITheme.DARK_TEXT);
-
-		RoundedButton b = new RoundedButton("");
-		b.setLayout(new FlowLayout(FlowLayout.LEFT, 6, 0));
-		b.setBorder(new EmptyBorder(6, 12, 6, 12));
-		b.setFocusPainted(false);
-		b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-		applyGrayStyle(b, type, false);
-
-		b.add(icon);
-		b.add(text);
-
-		b.addActionListener(e -> {
-			if (boundPost == null) return;
-
-			Services.SOCIAL.toggleReaction(boundPost.id, type);
-
-			refreshReactionSelection();
-			refreshSocialCounts();
-			refreshReactionSummary();
-		});
-
-		return b;
-	}
-
 	private void submitComment() {
 		if (boundPost == null) return;
-
 		String text = (commentField == null) ? "" : commentField.getText().trim();
 		if (text.isBlank()) return;
 
@@ -759,7 +544,7 @@ public class LogDetailView extends JPanel {
 			return;
 		}
 
-		List<SocialStore.Comment> list = Services.SOCIAL.listComments(boundPost.id);
+		var list = Services.SOCIAL.listComments(boundPost.id);
 		if (list.isEmpty()) {
 			JLabel empty = new JLabel("아직 댓글이 없어요.");
 			empty.setFont(FontKit.regular(13.5f));
@@ -768,7 +553,6 @@ public class LogDetailView extends JPanel {
 			commentsWrap.add(empty);
 		} else {
 			DateTimeFormatter df = DateTimeFormatter.ofPattern("MM.dd HH:mm");
-
 			for (SocialStore.Comment c : list) {
 				boolean isAuthor = (postAuthor != null && c.author != null && c.author.equals(postAuthor));
 
@@ -791,7 +575,6 @@ public class LogDetailView extends JPanel {
 				head.setAlignmentX(LEFT_ALIGNMENT);
 				headRow.add(head);
 
-				
 				if (isAuthor) {
 					Chip badge = new Chip();
 					configureDetailChip(badge);
@@ -830,7 +613,6 @@ public class LogDetailView extends JPanel {
 		commentsCountLabel.setText(String.valueOf(Services.SOCIAL.getCommentCount(boundPost.id)));
 	}
 
-	// [COLLAB] 섹션 = 제목(굵게) + 내용(들여쓰기) 규칙 통일 
 	private JPanel sectionBlock(String title, JComponent body) {
 		JPanel wrap = new JPanel();
 		wrap.setOpaque(false);
@@ -889,7 +671,7 @@ public class LogDetailView extends JPanel {
 		return p;
 	}
 
-	private JTextArea makeArea() {
+	private static JTextArea makeArea() {
 		JTextArea ta = new JTextArea();
 		ta.setLineWrap(true);
 		ta.setWrapStyleWord(true);
@@ -900,147 +682,51 @@ public class LogDetailView extends JPanel {
 		return ta;
 	}
 
-	public LogPost getBoundPost() {
-		return boundPost;
-	}
+	
 
 	public void bind(LogPost post) {
 		this.boundPost = post;
-		if (post == null) return;
+		if (post == null)
+			return;
 
-		// () 작성자 세팅: DB 붙이면 post의 author 필드로 교체
 		postAuthor = resolvePostAuthor(post);
 
 		
 		Services.SOCIAL.addView(post.id);
 
 		DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-		String visibility = post.isPublic ? "공개" : "비공개";
 
 		
 		String field = safeText(post.field);
-		String subCategory = safeText(post.subCategory);
+		String category = safeText(post.subCategory);
 
-		applyMetaChip(fieldChip, field);
-		applyMetaChip(categoryChip, subCategory);
-		applyStatusChip(statusChip, post.status);
+		applyMetaChip(fieldChip, field.isBlank() ? "기타" : field);
+		applyMetaChip(categoryChip, category.isBlank() ? "기타" : category);
 
 		titleLabel.setText(safeText(post.title));
-		metaLabel.setText(post.createdAt.format(fmt) + " · " + visibility);
+
+		LocalDate d = (post.createdAt == null) ? LocalDate.now() : post.createdAt;
+		String visibility = post.isPublic ? "공개" : "비공개";
+		metaLabel.setText(d.format(fmt) + " · " + visibility);
 
 		
-		String goal = firstNonBlank(post.goalText, "");
-		String mood = firstNonBlank(post.mood, post.feeling);
-		List<String> goodPoints = (post.goodPoints == null) ? List.of() : post.goodPoints;
-		String goodOther = safeText(post.goodOther);
-		String pain = firstNonBlank(post.painPoint, post.difficulty);
-		List<String> factors = (post.influenceFactors == null) ? List.of() : post.influenceFactors;
-		String factorsOther = safeText(post.influenceOther);
-		String process = firstNonBlank(post.processText, post.whatIDid);
-		String planGap = safeText(post.planGapLevel);
-		String planGapDetail = safeText(post.planGapDetail);
-		String learning = firstNonBlank(post.learningText, post.learning);
-		List<String> nextAdjust = (post.nextAdjustPoints == null) ? List.of() : post.nextAdjustPoints;
-		String nextAdjustOther = safeText(post.nextAdjustOther);
-		String nextPlan = safeText(post.nextPlan);
-		String retryCondition = firstNonBlank(post.retryCondition, post.retryPlan);
-		String linkUrl = firstNonBlank(post.linkUrl, post.link);
-		String linkPoint = safeText(post.linkPoint);
+		String question = safeText(post.processText);
+		questionArea.setText(question);
 
 		
-		boolean showExpectation = !goal.isBlank();
-		secExpectation.setVisible(showExpectation);
-		expectationArea.setText(goal);
+		String link = safeText(post.linkUrl);
+		if (link.isBlank())
+			link = safeText(post.link);
 
-		
-		boolean hasGood = !(goodPoints.isEmpty() && safeText(goodOther).isBlank());
-		boolean showResult = (!mood.isBlank()) || (!pain.isBlank()) || hasGood;
-		secResult.setVisible(showResult);
-
-		if (showResult) {
-			String moodText = stripEmoji(mood);
-			if (moodText.isBlank()) {
-				moodChip.setVisible(false);
-			} else {
-				moodChip.setVisible(true);
-				applyMoodChip(moodChip, moodText);
-			}
-
-			boolean positive = isPositiveMood(mood);
-			boolean negative = isNegativeMood(mood);
-
-			rebuildChipWrap(goodChipsWrap, mergeListWithOther(goodPoints, goodOther), ChipStyle.GOOD);
-			goodChipsWrap.setVisible(positive && goodChipsWrap.getComponentCount() > 0);
-
-			painArea.setText(pain);
-			painArea.setVisible(negative && !pain.isBlank());
-
-			if (!positive && !negative) {
-				goodChipsWrap.setVisible(goodChipsWrap.getComponentCount() > 0);
-				painArea.setVisible(!pain.isBlank());
-			}
-		}
-
-		
-		List<String> factorMerged = mergeListWithOther(factors, factorsOther);
-		rebuildChipWrap(factorsChipsWrap, factorMerged, ChipStyle.FACTOR);
-		boolean showFactors = factorsChipsWrap.getComponentCount() > 0;
-		secFactors.setVisible(showFactors);
-
-		// [COLLAB] 행동 과정 (필수) ----
-		processArea.setText(process.isBlank() ? DUMMY_TEXT : process);
-		secProcess.setVisible(true);
-
-		
-		boolean showPlanGap = !planGap.isBlank();
-		secPlanGap.setVisible(showPlanGap);
-		if (showPlanGap) {
-			applyGreyChip(planGapChip, stripEmoji(planGap));
-			planGapDetailArea.setText(planGapDetail);
-			planGapDetailWrap.setVisible(!planGapDetail.isBlank());
-		}
-
-		// [COLLAB] 회고 (필수) ----
-		learningArea.setText(learning.isBlank() ? DUMMY_TEXT : learning);
-		secLearning.setVisible(true);
-
-		// [COLLAB] 성장 설계 (필수) ----
-		secGrowth.setVisible(true);
-
-		List<String> nextAdjustMerged = mergeListWithOther(nextAdjust, nextAdjustOther);
-		rebuildChipWrap(nextAdjustWrap, nextAdjustMerged, ChipStyle.GOOD);
-		boolean hasNextAdjust = nextAdjustWrap.getComponentCount() > 0;
-		nextAdjustWrap.setVisible(hasNextAdjust);
-		nextAdjustFallback.setVisible(!hasNextAdjust);
-
-		String planLine = stripEmoji(nextPlan);
-		if (planLine.isBlank()) planLine = DUMMY_PLAN;
-		nextPlanLine.setText(planLine);
-
-		if (!retryCondition.isBlank()) {
-			retryConditionArea.setText(retryCondition);
-			retryConditionArea.setVisible(true);
-		} else {
-			retryConditionArea.setText("");
-			retryConditionArea.setVisible(false);
-		}
-
-		
-		String u = (linkUrl == null) ? "" : linkUrl.trim();
-		boolean showLink = !u.isBlank();
+		boolean showLink = !link.isBlank();
 		secLink.setVisible(showLink);
+		divAfterQuestion.setVisible(showLink);
 
 		if (showLink) {
-			String normalized = normalizeUrl(u);
+			String normalized = normalizeUrl(link);
 			linkLabel.setText("<html><u>" + escapeHtml(normalized) + "</u></html>");
-
-			if (linkPoint.isBlank()) {
-				linkPointLabel.setVisible(false);
-				linkPointLabel.setText("");
-			} else {
-				linkPointLabel.setVisible(true);
-				linkPointLabel.setText("확인 포인트: " + linkPoint);
-			}
+		} else {
+			linkLabel.setText("");
 		}
 
 		
@@ -1061,9 +747,6 @@ public class LogDetailView extends JPanel {
 		}
 
 		
-		updateDividers();
-
-		
 		refreshSocialCounts();
 		refreshReactionSelection();
 		refreshReactionSummary();
@@ -1073,126 +756,41 @@ public class LogDetailView extends JPanel {
 		repaint();
 	}
 
-	private void updateDividers() {
-		boolean vExpectation = secExpectation.isVisible();
-		boolean vResult = secResult.isVisible();
-		boolean vFactors = secFactors.isVisible();
-		boolean vProcess = secProcess.isVisible(); // [COLLAB] 필수
-		boolean vPlanGap = secPlanGap.isVisible();
-		boolean vLearning = secLearning.isVisible(); // [COLLAB] 필수
-		boolean vGrowth = secGrowth.isVisible(); // [COLLAB] 필수
-		boolean vLink = secLink.isVisible();
-		boolean vSocial = (secSocial != null) && secSocial.isVisible();
-
-		
-		divAfterExpectation.setVisible(
-				vExpectation && (vResult || vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink));
-		divAfterResult.setVisible(vResult && (vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink));
-		divAfterFactors.setVisible(vFactors && (vProcess || vPlanGap || vLearning || vGrowth || vLink));
-		divAfterProcess.setVisible(vProcess && (vPlanGap || vLearning || vGrowth || vLink));
-		divAfterPlanGap.setVisible(vPlanGap && (vLearning || vGrowth || vLink));
-		divAfterLearning.setVisible(vLearning && (vGrowth || vLink || vSocial));
-		divAfterGrowth.setVisible(vGrowth && (vLink || vSocial));
-		if (divAfterLink != null) divAfterLink.setVisible(vLink && vSocial);
-	}
-
-	private void rebuildChipWrap(JPanel wrap, List<String> values, ChipStyle style) {
-		wrap.removeAll();
-		if (values != null) {
-			for (String v : values) {
-				String text = safeText(v);
-				if (text.isBlank()) continue;
-				Chip c = new Chip();
-				configureDetailChip(c);
-				c.setFont(FontKit.medium(12.5f));
-				applyStyledChip(c, text, style);
-				wrap.add(c);
-			}
-		}
-		wrap.revalidate();
-		wrap.repaint();
-	}
-
-	private enum ChipStyle { META, GOOD, FACTOR }
-
-	private void applyStyledChip(Chip chip, String text, ChipStyle style) {
-		if (style == ChipStyle.GOOD) {
-			chip.setChip(text,
-					UITheme.detailChipBg(UITheme.DetailChipStyle.GOOD),
-					UITheme.detailChipFg(UITheme.DetailChipStyle.GOOD));
+	private void scrollToTop() {
+		if (scroll == null)
 			return;
-		}
-		if (style == ChipStyle.FACTOR) {
-			chip.setChip(text,
-					UITheme.detailChipBg(UITheme.DetailChipStyle.FACTOR),
-					UITheme.detailChipFg(UITheme.DetailChipStyle.FACTOR));
-			return;
-		}
-		chip.setChip(text,
-				UITheme.detailChipBg(UITheme.DetailChipStyle.META),
-				UITheme.detailChipFg(UITheme.DetailChipStyle.META));
-	}
-
-	private void applyMoodChip(Chip chip, String text) {
-		chip.setChip("진행 느낌 · " + safeText(text),
-				UITheme.detailChipBg(UITheme.DetailChipStyle.INFO),
-				UITheme.detailChipFg(UITheme.DetailChipStyle.INFO));
-	}
-
-	private void applyMetaChip(Chip chip, String text) {
-		chip.setChip(safeText(text),
-				UITheme.chipBg(UITheme.ChipStyle.NEUTRAL),
-				UITheme.chipFg(UITheme.ChipStyle.NEUTRAL));
-	}
-
-	private void applyGreyChip(Chip chip, String text) {
-		chip.setChip(text,
-				UITheme.detailChipBg(UITheme.DetailChipStyle.NEUTRAL),
-				UITheme.detailChipFg(UITheme.DetailChipStyle.NEUTRAL));
+		SwingUtilities.invokeLater(() -> {
+			JScrollBar bar = scroll.getVerticalScrollBar();
+			if (bar != null)
+				bar.setValue(0);
+		});
 	}
 
 	
-	private void applyStatusChip(Chip chip, LogStatus status) {
-		LogStatus st = (status == null) ? LogStatus.IN_PROGRESS : status;
-		chip.setChip(st.label, UITheme.chipBg(st), UITheme.chipFg(st));
-	}
 
-	private boolean isPositiveMood(String mood) {
-		String m = (mood == null) ? "" : mood;
-		return m.contains("만족") || m.contains("괜찮") || m.contains("좋");
-	}
-
-	private boolean isNegativeMood(String mood) {
-		String m = (mood == null) ? "" : mood;
-		return m.contains("아쉬") || m.contains("힘들") || m.contains("별로");
-	}
-
-	private List<String> mergeListWithOther(List<String> list, String other) {
-		List<String> out = new ArrayList<>();
-		if (list != null) {
-			for (String s : list) {
-				String v = safeText(s);
-				if (!v.isBlank()) out.add(v);
+	private void initLinkLabel() {
+		linkLabel.setFont(FontKit.regular(14f));
+		linkLabel.setForeground(UITheme.ACCENT_BLUE);
+		linkLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		linkLabel.setAlignmentX(LEFT_ALIGNMENT);
+		linkLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				String url = stripHtml(linkLabel.getText());
+				if (url.isEmpty())
+					return;
+				openLink(url);
 			}
-		}
-		String o = safeText(other);
-		if (!o.isBlank()) out.add(o);
-		return out;
-	}
-
-	private void scrollToTop() {
-		if (scroll == null) return;
-		SwingUtilities.invokeLater(() -> {
-			JScrollBar bar = scroll.getVerticalScrollBar();
-			if (bar != null) bar.setValue(0);
 		});
 	}
 
 	private void openLink(String url) {
 		String normalized = normalizeUrl(url);
-		if (normalized.isEmpty()) return;
+		if (normalized.isEmpty())
+			return;
 		try {
-			if (!Desktop.isDesktopSupported()) return;
+			if (!Desktop.isDesktopSupported())
+				return;
 			Desktop.getDesktop().browse(new URI(normalized));
 		} catch (Exception ex) {
 			JOptionPane.showMessageDialog(this, "링크를 열 수 없어요.\n" + normalized);
@@ -1200,43 +798,40 @@ public class LogDetailView extends JPanel {
 	}
 
 	private String normalizeUrl(String url) {
-		if (url == null) return "";
+		if (url == null)
+			return "";
 		String u = url.trim();
-		if (u.isEmpty()) return "";
-		if (u.startsWith("http://") || u.startsWith("https://")) return u;
+		if (u.isEmpty())
+			return "";
+		if (u.startsWith("http://") || u.startsWith("https://"))
+			return u;
 		return "https://" + u;
 	}
 
 	private String escapeHtml(String s) {
-		if (s == null) return "";
-		return s.replace("&", "&amp;")
-				.replace("<", "&lt;")
-				.replace(">", "&gt;")
-				.replace("\"", "&quot;");
+		if (s == null)
+			return "";
+		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
 	}
 
 	private String stripHtml(String s) {
-		if (s == null) return "";
+		if (s == null)
+			return "";
 		return s.replaceAll("<[^>]*>", "").trim();
 	}
 
-	private String stripEmoji(String s) {
-		if (s == null) return "";
-		return s.replaceAll("^[\\p{So}\\p{Sk}\\p{Cs}\\s]+", "").trim();
+	private static String mi(int codePointHex) {
+		return new String(Character.toChars(codePointHex));
 	}
+
+	
 
 	private String safeText(String s) {
 		return (s == null) ? "" : s.trim();
 	}
 
-	private String firstNonBlank(String a, String b) {
-		String x = safeText(a);
-		if (!x.isBlank()) return x;
-		return safeText(b);
-	}
-
 	private void confirmDelete() {
-		int r = JOptionPane.showConfirmDialog(this, "이 글을 삭제할까요?", "삭제 확인", JOptionPane.YES_NO_OPTION);
+		int r = JOptionPane.showConfirmDialog(this, "이 질문을 삭제할까요?", "삭제 확인", JOptionPane.YES_NO_OPTION);
 		if (r == JOptionPane.YES_OPTION) {
 			JOptionPane.showMessageDialog(this, "삭제 기능은 DB 연결 후 적용할 수 있어요.");
 		}
@@ -1249,9 +844,13 @@ public class LogDetailView extends JPanel {
 		btn.setPreferredSize(new Dimension(primary ? 170 : 110, 36));
 	}
 
-	// () LogPost에서 작성자 필드가 있으면 잡아오기 (DB 붙으면 교체)
+	private void applyMetaChip(Chip chip, String text) {
+		chip.setChip(text, UITheme.chipBg(UITheme.ChipStyle.NEUTRAL), UITheme.chipFg(UITheme.ChipStyle.NEUTRAL));
+	}
+
 	private String resolvePostAuthor(LogPost post) {
-		if (post == null) return "나";
+		if (post == null)
+			return "나";
 		String[] candidates = { "authorNick", "authorId", "userNick", "nick", "author" };
 		for (String f : candidates) {
 			try {
@@ -1260,9 +859,11 @@ public class LogDetailView extends JPanel {
 				Object v = field.get(post);
 				if (v != null) {
 					String s = v.toString().trim();
-					if (!s.isBlank()) return s;
+					if (!s.isBlank())
+						return s;
 				}
-			} catch (Exception ignored) { }
+			} catch (Exception ignored) {
+			}
 		}
 		return "나";
 	}

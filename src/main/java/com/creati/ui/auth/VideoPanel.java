@@ -12,6 +12,7 @@ import javafx.scene.shape.Rectangle;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Objects;
 import java.nio.file.Path;
 
 public class VideoPanel extends JPanel {
@@ -22,16 +23,24 @@ public class VideoPanel extends JPanel {
     public VideoPanel(Path videoPath) {
         super(new BorderLayout());
         add(jfx, BorderLayout.CENTER);
-        Platform.runLater(() -> init(videoPath));
+        Platform.runLater(() -> init(videoPath.toUri().toString()));
     }
 
-    private void init(Path videoPath) {
-        Media media = new Media(videoPath.toUri().toString());
+    // Preferred: classpath resource URL (e.g., getResource("/videos/intro.mp4").toExternalForm()) 
+    public VideoPanel(String mediaUrl) {
+        super(new BorderLayout());
+        add(jfx, BorderLayout.CENTER);
+        String safeUrl = Objects.requireNonNull(mediaUrl, "mediaUrl");
+        Platform.runLater(() -> init(safeUrl));
+    }
+
+    private void init(String mediaUrl) {
+        Media media = new Media(mediaUrl);
         player = new MediaPlayer(media);
         player.setCycleCount(MediaPlayer.INDEFINITE);
         player.setAutoPlay(true);
         
-     // 재생 속도 조절 (0.8배속)
+     
         player.setRate(0.8);
 
         MediaView view = new MediaView(player);

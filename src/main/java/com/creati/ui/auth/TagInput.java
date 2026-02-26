@@ -11,12 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * 관심분야 태그 입력 컴포넌트 (UI 전용)
- * - 선택한 태그를 칩 형태로 표시
- * - 직접 입력 가능 (#내용 입력 후 Enter)
- * - 최대 3개까지 입력 가능
- */
+
 public class TagInput extends JPanel {
 
     private final Set<String> tags = new LinkedHashSet<>();
@@ -32,8 +27,8 @@ public class TagInput extends JPanel {
         this.fixedW = width;
         this.fixedH = height;
 
-        setBackground(Color.WHITE);
-        setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        setBackground(UITheme.WHITE);
+        setBorder(BorderFactory.createLineBorder(UITheme.RGB_200_200_200, 1));
         setPreferredSize(new Dimension(fixedW, fixedH));
         setMinimumSize(new Dimension(fixedW, fixedH));
         setMaximumSize(new Dimension(fixedW, fixedH));
@@ -132,7 +127,7 @@ public class TagInput extends JPanel {
                 input.getText().isEmpty() && !placeholder.isEmpty()) {
             JLabel hint = new JLabel(placeholder);
             hint.setFont(UITheme.BODY);
-            hint.setForeground(new Color(150, 150, 160));
+            hint.setForeground(UITheme.RGB_150_150_160);
             hint.setBounds(x, y, 220, chipH);
             add(hint);
         } else {
@@ -155,20 +150,20 @@ public class TagInput extends JPanel {
     private JPanel chip(String text) {
         JPanel chip = new JPanel();
         chip.setOpaque(true);
-        chip.setBackground(new Color(0xFFE474));
+        chip.setBackground(UITheme.YELLOW_250);
         chip.setBorder(new EmptyBorder(2, 6, 2, 4));
         chip.setLayout(new BoxLayout(chip, BoxLayout.X_AXIS));
 
         JLabel l = new JLabel("#" + text);
         l.setFont(UITheme.BODY);
-        l.setForeground(new Color(60, 60, 70));
+        l.setForeground(UITheme.RGB_60_60_70);
 
         JButton x = new JButton("×");
         x.setFont(UITheme.BODY);
         x.setFocusPainted(false);
         x.setBorderPainted(false);
         x.setContentAreaFilled(false);
-        x.setForeground(new Color(100, 100, 110));
+        x.setForeground(UITheme.RGB_100_100_110);
         x.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         x.addActionListener(e -> {

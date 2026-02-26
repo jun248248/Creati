@@ -7,17 +7,16 @@ import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
 import java.awt.*;
-import java.nio.file.Path;
 import java.util.Set;
 
 public class SignupFrame extends JFrame {
 
-	private static final Path VIDEO_PATH = Path.of("src/main/resources/videos/intro.mp4");
+	private static final String VIDEO_RES = "/videos/intro.mp4";
 
 	private static final int LABEL_WIDTH = 110;
 	private static final int FIELD_HEIGHT = 38;
 	private static final int ROW_GAP = 12;
-	private static final int RIGHT_W = 330;
+	private static final int RIGHT_W = 305;
 
 	private final JFrame loginFrame;
 
@@ -36,7 +35,7 @@ public class SignupFrame extends JFrame {
 	private JComboBox<String> emailDomainCombo;
 
 	private JComboBox<String> platformCombo;
-	private JComboBox<String> categoryCombo;
+	private JComboBox<String> interestCombo;
 	private TagInput tagInput;
 
 	private JLabel msgLabel;
@@ -60,16 +59,16 @@ public class SignupFrame extends JFrame {
 
 	private JComponent buildVideoPanel() {
 		JPanel p = new JPanel(new BorderLayout());
-		p.setBackground(new Color(20, 18, 28));
+		p.setBackground(UITheme.DARK_SURFACE);
 
 		try {
-			VideoPanel video = new VideoPanel(VIDEO_PATH);
+			VideoPanel video = new VideoPanel(java.util.Objects.requireNonNull(getClass().getResource(VIDEO_RES)).toExternalForm());
 			video.setPreferredSize(new Dimension(550, 720));
 			p.add(video, BorderLayout.CENTER);
 		} catch (Throwable t) {
 			JLabel fallback = new JLabel("<html><center><b>영상 영역</b><br/>OpenJFX 설정 필요</center></html>",
 					SwingConstants.CENTER);
-			fallback.setForeground(Color.WHITE);
+			fallback.setForeground(UITheme.ON_DARK);
 			p.add(fallback, BorderLayout.CENTER);
 		}
 		return p;
@@ -100,8 +99,8 @@ public class SignupFrame extends JFrame {
 		s.insets = new Insets(22, 0, 0, 0);
 
 		JPanel card = new JPanel(new BorderLayout());
-		card.setBackground(Color.WHITE);
-		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(230, 230, 235), 1),
+		card.setBackground(UITheme.SURFACE);
+		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UITheme.SURFACE_BORDER, 1),
 				new EmptyBorder(20, 20, 20, 20)));
 
 		Dimension cardSize = new Dimension(490, 520);
@@ -110,7 +109,7 @@ public class SignupFrame extends JFrame {
 		card.setMaximumSize(cardSize);
 
 		JPanel page = new JPanel(new GridBagLayout());
-		page.setBackground(Color.WHITE);
+		page.setBackground(UITheme.SURFACE);
 
 		GridBagConstraints g = new GridBagConstraints();
 		g.gridx = 0;
@@ -127,7 +126,7 @@ public class SignupFrame extends JFrame {
 		scroll.setBorder(null);
 		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scroll.getVerticalScrollBar().setUnitIncrement(16);
-		scroll.getViewport().setBackground(Color.WHITE);
+		scroll.getViewport().setBackground(UITheme.SURFACE);
 
 		page.add(scroll, g);
 		SwingUtilities.invokeLater(() -> scroll.getVerticalScrollBar().setValue(0));
@@ -142,7 +141,7 @@ public class SignupFrame extends JFrame {
 		msgLabel.setForeground(UITheme.ERROR);
 
 		JPanel msgWrap = new JPanel(new BorderLayout());
-		msgWrap.setBackground(Color.WHITE);
+		msgWrap.setBackground(UITheme.SURFACE);
 		msgWrap.add(msgLabel, BorderLayout.CENTER);
 		page.add(msgWrap, g);
 
@@ -178,7 +177,9 @@ public class SignupFrame extends JFrame {
 
 	private JComponent buildFormPanel() {
 		JPanel form = new JPanel(new GridBagLayout());
-		form.setBackground(Color.WHITE);
+		form.setBackground(UITheme.SURFACE);
+		
+		form.setBorder(new EmptyBorder(0, 0, 0, 16));
 
 		GridBagConstraints r = new GridBagConstraints();
 		r.gridy = 0;
@@ -249,7 +250,7 @@ public class SignupFrame extends JFrame {
 		emailRow.setMaximumSize(new Dimension(RIGHT_W, FIELD_HEIGHT));
 
 		int localW = 95;
-		int domainW = 95;
+		int domainW = 80;
 		int comboW = RIGHT_W - (localW + domainW + 8 + 6 + 6 + 10);
 
 		emailLocalField = new JTextField();
@@ -299,14 +300,14 @@ public class SignupFrame extends JFrame {
 		catPanel.setPreferredSize(new Dimension(RIGHT_W, FIELD_HEIGHT * 2 + 8));
 		catPanel.setMaximumSize(new Dimension(RIGHT_W, FIELD_HEIGHT * 2 + 8));
 
-		categoryCombo = new JComboBox<>(new String[] { "선택", "영상", "이미지", "글", "음악" });
-		setFieldSize(categoryCombo, new Dimension(RIGHT_W, FIELD_HEIGHT));
+		interestCombo = new JComboBox<>(new String[] { "선택", "영상", "이미지", "글", "음악" });
+		setFieldSize(interestCombo, new Dimension(RIGHT_W, FIELD_HEIGHT));
 
 		JPanel comboWrap = new JPanel(new BorderLayout());
 		comboWrap.setOpaque(false);
 		comboWrap.setPreferredSize(new Dimension(RIGHT_W, FIELD_HEIGHT));
 		comboWrap.setMaximumSize(new Dimension(RIGHT_W, FIELD_HEIGHT));
-		comboWrap.add(categoryCombo, BorderLayout.WEST);
+		comboWrap.add(interestCombo, BorderLayout.WEST);
 
 		tagInput = new TagInput(RIGHT_W, FIELD_HEIGHT);
 		tagInput.setPlaceholder("#내용 입력 후 Enter");
@@ -317,19 +318,19 @@ public class SignupFrame extends JFrame {
 		tagWrap.setMaximumSize(new Dimension(RIGHT_W, FIELD_HEIGHT));
 		tagWrap.add(tagInput, BorderLayout.WEST);
 
-		categoryCombo.addActionListener(e -> {
-			int idx = categoryCombo.getSelectedIndex();
+		interestCombo.addActionListener(e -> {
+			int idx = interestCombo.getSelectedIndex();
 			if (idx <= 0)
 				return;
 
 			if (tagInput.getTags().size() >= 3) {
 				toast("관심분야는 최대 3개까지만 선택 가능합니다.");
-				categoryCombo.setSelectedIndex(0);
+				interestCombo.setSelectedIndex(0);
 				return;
 			}
-			String v = (String) categoryCombo.getSelectedItem();
+			String v = (String) interestCombo.getSelectedItem();
 			tagInput.addTag(v);
-			categoryCombo.setSelectedIndex(0);
+			interestCombo.setSelectedIndex(0);
 		});
 
 		catPanel.add(comboWrap);
@@ -342,15 +343,17 @@ public class SignupFrame extends JFrame {
 	}
 
 	private void onSignup() {
-		JOptionPane.showMessageDialog(this, "TODO: 회원가입 저장/검증 연결 (UI 완료)");
-		dispose();
-		if (loginFrame != null)
-			loginFrame.setVisible(true);
-	}
+	// DB validate
+	// DB signup
+	JOptionPane.showMessageDialog(this, "회원가입 기능은 DB 연동 후 동작합니다.");
+	dispose();
+	if (loginFrame != null)
+		loginFrame.setVisible(true);
+}
 
-	// =========================
-	// Helpers
-	// =========================
+	
+	
+	
 	private void addRow(JPanel form, GridBagConstraints r, JComponent left, JComponent right) {
 		GridBagConstraints l = (GridBagConstraints) r.clone();
 		l.gridx = 0;
@@ -418,7 +421,7 @@ public class SignupFrame extends JFrame {
 		JButton b = new JButton(text);
 		b.setFocusPainted(false);
 		b.setBackground(UITheme.ACCENT_PURPLE);
-		b.setForeground(Color.WHITE);
+		b.setForeground(UITheme.ON_DARK);
 		b.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
 		return b;
 	}
@@ -426,18 +429,18 @@ public class SignupFrame extends JFrame {
 	private JButton secondaryButton(String text) {
 		JButton b = new JButton(text);
 		b.setFocusPainted(false);
-		b.setBackground(new Color(245, 245, 248));
+		b.setBackground(UITheme.BTN_SECONDARY_BG);
 		b.setForeground(UITheme.TEXT);
-		b.setBorder(BorderFactory.createLineBorder(new Color(225, 225, 232), 1));
+		b.setBorder(BorderFactory.createLineBorder(UITheme.BTN_SECONDARY_BORDER, 1));
 		return b;
 	}
 
 	private JButton secondarySmallButton(String text) {
 		JButton b = new JButton(text);
 		b.setFocusPainted(false);
-		b.setBackground(new Color(245, 245, 248));
+		b.setBackground(UITheme.BTN_SECONDARY_BG);
 		b.setForeground(UITheme.TEXT);
-		b.setBorder(BorderFactory.createLineBorder(new Color(225, 225, 232), 1));
+		b.setBorder(BorderFactory.createLineBorder(UITheme.BTN_SECONDARY_BORDER, 1));
 		b.setFont(UITheme.CAPTION);
 		return b;
 	}
