@@ -6,11 +6,13 @@ import com.creati.ui.main.MainUiParts.ChartCard;
 import com.creati.ui.main.MainUiParts.HomeCard;
 import com.creati.ui.main.MainUiParts.MiniBarChart;
 import com.creati.ui.main.MainUiParts.MiniLineChart;
+import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
+
+import com.creati.ui.components.RoundedLabel;
 import com.creati.service.GptAnalysisService;
 import com.creati.ui.main.GptResultDialog; 
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -19,307 +21,336 @@ import static com.creati.ui.main.MainUiParts.*;
 import java.awt.*;
 import java.util.function.Supplier;
 
-/**
- * HOME 화면만 담당
- * - KPI
- * - 통계
- * - 월간 AI 인사이트
- */
+
 public class MainHomeView extends JPanel {
-	
-	private final GptAnalysisService gptService = new GptAnalysisService();
-	private final StatService statService = new StatService();
-	
-    private static final Color YELLOW_DARK = new Color(0xFFC107);
-    private static final Color YELLOW_MID  = new Color(0xFFD54F);
-    private static final Color YELLOW_SOFT = new Color(0xFFE082);
 
-    private final Supplier<String> insightGetter;
-    private final java.util.function.Consumer<String> insightSetter;
+	private static final Color YELLOW_DARK = UITheme.YELLOW_500;
+	private static final Color YELLOW_MID = UITheme.YELLOW_300;
+	private static final Color YELLOW_SOFT = UITheme.YELLOW_200;
 
-    public MainHomeView(Supplier<String> insightGetter,
-                        java.util.function.Consumer<String> insightSetter) {
-        this.insightGetter = insightGetter;
-        this.insightSetter = insightSetter;
+	private final Supplier<String> insightGetter;
+	private final java.util.function.Consumer<String> insightSetter;
 
-        UITheme.ensureInit();
+	public MainHomeView(Supplier<String> insightGetter, java.util.function.Consumer<String> insightSetter) {
+		this.insightGetter = insightGetter;
+		this.insightSetter = insightSetter;
 
-        setLayout(new BorderLayout());
-        setOpaque(true);
-        setBackground(UITheme.BG);
-        setBorder(new EmptyBorder(0, 18, 18, 18));
+		UITheme.ensureInit();
 
-        add(buildHomeView(), BorderLayout.CENTER);
-    }
+		setLayout(new BorderLayout());
+		setOpaque(true);
+		setBackground(UITheme.BG);
+		setBorder(new EmptyBorder(0, 18, 18, 18));
 
-    private JComponent buildHomeView() {
-        JPanel board = new JPanel(new GridBagLayout());
-        board.setOpaque(false);
+		add(buildHomeView(), BorderLayout.CENTER);
+	}
 
-        GridBagConstraints g = new GridBagConstraints();
-        g.gridx = 0;
-        g.gridy = 0;
-        g.weightx = 1;
-        g.fill = GridBagConstraints.HORIZONTAL;
-        g.insets = new Insets(0, 0, 14, 0);
+	private JComponent buildHomeView() {
+		JPanel board = new JPanel(new GridBagLayout());
+		board.setOpaque(false);
 
-        JPanel kpiRow = new JPanel(new GridLayout(1, 3, 14, 0));
-        kpiRow.setOpaque(false);
-        kpiRow.add(kpiCard("이번 달 시도 로그", "12", "꾸준히 쌓는 중", YELLOW_DARK));
-        kpiRow.add(kpiCard("이번 달 폴더", "4", "도전이 정리되고 있어요", YELLOW_MID));
-        kpiRow.add(kpiCard("대표 카테고리", "영상", "가장 많이 기록됨", YELLOW_SOFT));
+		GridBagConstraints g = new GridBagConstraints();
+		g.gridx = 0;
+		g.gridy = 0;
+		g.weightx = 1;
+		g.fill = GridBagConstraints.HORIZONTAL;
+		g.insets = new Insets(0, 0, 14, 0);
 
-        board.add(kpiRow, g);
+		JPanel kpiRow = new JPanel(new GridLayout(1, 3, 14, 0));
+		kpiRow.setOpaque(false);
+		kpiRow.add(kpiCard("이번 달 시도 로그", "12", "꾸준히 쌓는 중", YELLOW_DARK));
+		kpiRow.add(kpiCard("이번 달 폴더", "4", "도전이 정리되고 있어요", YELLOW_MID));
+		kpiRow.add(kpiCard("대표 분야", "영상", "가장 많이 기록됨", YELLOW_SOFT));
 
-        g.gridy++;
-        g.weighty = 1;
-        g.fill = GridBagConstraints.BOTH;
-        g.insets = new Insets(0, 0, 0, 0);
+		board.add(kpiRow, g);
 
-        JPanel body = new JPanel(new GridLayout(1, 2, 16, 0));
-        body.setOpaque(false);
+		g.gridy++;
+		g.weighty = 1;
+		g.fill = GridBagConstraints.BOTH;
+		g.insets = new Insets(0, 0, 0, 0);
 
-        body.add(statsCard());
-        body.add(monthlyAIInsightCard());
+		JPanel body = new JPanel(new GridLayout(1, 2, 16, 0));
+		body.setOpaque(false);
 
-        board.add(body, g);
+		body.add(statsCard());
+		body.add(monthlyAIInsightCard());
 
-        return board;
-    }
+		board.add(body, g);
 
-    private JComponent kpiCard(String title, String value, String sub, Color accent) {
-        JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 235), 1, true),
-                new EmptyBorder(14, 14, 14, 14)
-        ));
+		return board;
+	}
 
-        JPanel top = new JPanel(new BorderLayout());
-        top.setOpaque(false);
+	private JComponent kpiCard(String title, String value, String sub, Color accent) {
+		JPanel card = new JPanel(new BorderLayout());
+		card.setBackground(UITheme.WHITE);
+		card.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true), new EmptyBorder(14, 14, 14, 14)));
 
-        JLabel t = new JLabel(title);
-        t.setFont(UITheme.CAPTION);
-        t.setForeground(new Color(120, 120, 120));
+		JPanel top = new JPanel(new BorderLayout());
+		top.setOpaque(false);
 
-        JPanel dot = new JPanel();
-        dot.setPreferredSize(new Dimension(10, 10));
-        dot.setBackground(accent);
-        dot.setOpaque(true);
+		JLabel t = new JLabel(title);
+		t.setFont(UITheme.CAPTION);
+		t.setForeground(UITheme.RGB_120_120_120);
 
-        top.add(t, BorderLayout.WEST);
-        top.add(dot, BorderLayout.EAST);
+		JPanel dot = new JPanel();
+		dot.setPreferredSize(new Dimension(10, 10));
+		dot.setBackground(accent);
+		dot.setOpaque(true);
 
-        JLabel v = new JLabel(value);
-        v.setFont(UITheme.H2 != null ? UITheme.H2.deriveFont(22f) : new Font("Dialog", Font.BOLD, 22));
-        v.setForeground(UITheme.TEXT);
+		top.add(t, BorderLayout.WEST);
+		top.add(dot, BorderLayout.EAST);
 
-        JLabel s = new JLabel(sub);
-        s.setFont(UITheme.CAPTION);
-        s.setForeground(new Color(140, 140, 140));
+		JLabel v = new JLabel(value);
+		v.setFont(UITheme.H2 != null ? UITheme.H2.deriveFont(22f) : UITheme.H2);
+		v.setForeground(UITheme.TEXT);
 
-        JPanel center = new JPanel();
-        center.setOpaque(false);
-        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-        center.add(Box.createVerticalStrut(6));
-        center.add(v);
-        center.add(Box.createVerticalStrut(6));
-        center.add(s);
+		JLabel s = new JLabel(sub);
+		s.setFont(UITheme.CAPTION);
+		s.setForeground(UITheme.RGB_140_140_140);
 
-        card.add(top, BorderLayout.NORTH);
-        card.add(center, BorderLayout.CENTER);
+		JPanel center = new JPanel();
+		center.setOpaque(false);
+		center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+		center.add(Box.createVerticalStrut(6));
+		center.add(v);
+		center.add(Box.createVerticalStrut(6));
+		center.add(s);
 
-        return card;
-    }
+		card.add(top, BorderLayout.NORTH);
+		card.add(center, BorderLayout.CENTER);
 
-    private JComponent statsCard() {
-        HomeCard card = new HomeCard("통계");
+		return card;
+	}
 
-        JPanel body = new JPanel();
-        body.setOpaque(false);
-        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+	private JComponent statsCard() {
+		HomeCard card = new HomeCard("나의 성장 상태");
 
-        // 실패 원인 Top3
-        JPanel chips = new JPanel(new GridLayout(1, 2, 10, 0));
-        chips.setOpaque(false);
-        chips.add(pill("실패 원인 Top3", "시간 부족 · 계획 미흡 · 집중 분산"));
-        attachHeight(chips, 46);
+		JPanel body = new JPanel();
+		body.setOpaque(false);
+		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-        // 실시간 반영을 위한 데이터 변수 (이 숫자만 바꾸면 UI에 반영됨)
-        int[] weeklyData = {4, 2, 6, 3, 20, 8, 7}; // 주간 기록 데이터
-        String[] categoryLabels = {"영상", "이미지", "글", "기타"};
-        int[] categoryValues = {50, 25, 15, 10}; // 카테고리 비율 데이터
+		
+		String typeChip = "꾸준러형";
+		String typeDesc = "매일매일 쌓는 타입";
 
-        JPanel charts = new JPanel(new GridLayout(2, 1, 0, 12));
-        charts.setOpaque(false);
+		
+		JLabel hint = new JLabel("이번 달의 성장 흐름을 한눈에 확인해요.");
+		hint.setFont(UITheme.CAPTION);
+		hint.setForeground(UITheme.RGB_140_140_140);
+		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 주간 기록 추이
-        ChartCard lineCard = new ChartCard("주간 기록 추이");
-        lineCard.setChart(new MiniLineChart(weeklyData)); // 데이터 주입
-        lineCard.setHint("최근 7일간 준일 님의 기록 흐름입니다.");
+		
+		JComponent typeCard = buildTypeCard(typeChip, typeDesc);
+		typeCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 카테고리 비율
-        ChartCard barCard = new ChartCard("카테고리 비율");
-        barCard.setChart(new MiniBarChart(categoryLabels, categoryValues)); // 데이터 주입
-        barCard.setHint("어떤 분야에 가장 많이 도전했는지 보여줘요.");
+		
+		String[] axes = { "꾸준함", "도전력", "실행력", "회복력", "성찰력", "소통력" };
+		int[] scores = { 2, 2, 1, 3, 2, 1 };
+		JComponent radar = new MainUiParts.RadarChart(axes, scores);
+		radar.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        charts.add(lineCard);
-        charts.add(barCard);
+		body.add(hint);
+		body.add(Box.createVerticalStrut(10));
+		body.add(typeCard);
+		body.add(Box.createVerticalStrut(10));
+		body.add(radar);
 
-        body.add(chips);
-        body.add(Box.createVerticalStrut(12));
-        body.add(charts);
-        body.add(Box.createVerticalGlue());
+		card.setBody(body);
+		return card;
+	}
 
-        card.setBody(body);
-        return card;
-    }
+	private JComponent buildTypeCard(String typeChip, String desc) {
+		JPanel card = new JPanel(new BorderLayout());
+		card.setOpaque(true);
+		card.setBackground(UITheme.RGB_245_245_248);
 
-    private JComponent monthlyAIInsightCard() {
-        HomeCard card = new HomeCard("월간 AI 인사이트");
+		card.setBorder(new EmptyBorder(8, 12, 8, 12));
 
-        JPanel body = new JPanel();
-        body.setOpaque(false);
-        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+		JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+		row.setOpaque(false);
 
-        JLabel hint = new JLabel("<html><div style='line-height:1.5; text-align:left;'>"
-                + "매달 1회, 이번 달 기록을 요약해<br/>"
-                + "다음 달 집중 포인트를 받아볼 수 있어요."
-                + "</div></html>");
-        hint.setFont(UITheme.CAPTION.deriveFont(12f));
-        hint.setForeground(new Color(120, 120, 120));
-        hint.setAlignmentX(Component.LEFT_ALIGNMENT);
+		JLabel title = new JLabel("현재 유형");
+		title.setFont(UITheme.BODY_MED);
+		title.setForeground(UITheme.TEXT);
 
-        JTextArea insightArea = new JTextArea();
-        insightArea.setEditable(false);
-        insightArea.setOpaque(false);
-        insightArea.setLineWrap(true);
-        insightArea.setWrapStyleWord(true); // 단어 단위 줄바꿈
-        insightArea.setFont(UITheme.BODY);
-        insightArea.setForeground(UITheme.TEXT);
-        insightArea.setBorder(new EmptyBorder(4, 4, 4, 4));
+		JLabel bar = new JLabel("|");
+		bar.setFont(UITheme.BODY);
+		bar.setForeground(UITheme.RGB_170_170_170);
 
-        JPanel insightBox = new JPanel(new BorderLayout());
-        insightBox.setOpaque(true);
-        insightBox.setBackground(new Color(245, 245, 248));
-        insightBox.setBorder(new EmptyBorder(12, 12, 12, 12));
-        insightBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+		JLabel chip = new RoundedLabel(typeChip).arc(18).bg(UITheme.WHITE).border(UITheme.ACCENT_LAVENDER_BORDER);
 
-        JScrollPane scroll = new JScrollPane(insightArea);
-        scroll.setBorder(null);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
+		chip.setFont(UITheme.BODY_MED);
+		chip.setForeground(UITheme.ACCENT_PURPLE);
 
-        insightBox.setPreferredSize(new Dimension(10, 220));
-        insightBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
-        insightBox.add(scroll, BorderLayout.CENTER);
+		JLabel descLabel = new JLabel(desc);
+		descLabel.setFont(UITheme.BODY);
+		descLabel.setForeground(UITheme.RGB_120_120_120);
 
-        applyInsightText(insightArea);
+		row.add(title);
+		row.add(bar);
+		row.add(chip);
+		row.add(descLabel);
 
-        JButton genBtn = new JButton("월간 인사이트 생성");
-        genBtn.setFocusPainted(false);
-        genBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        genBtn.setBackground(UITheme.ACCENT_PURPLE);
-        genBtn.setForeground(Color.WHITE);
-        genBtn.setBorder(new EmptyBorder(10, 14, 10, 14));
-        genBtn.setFont(UITheme.BODY_MED);
-        genBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+		card.add(row, BorderLayout.WEST);
+		return card;
+	}
 
-       /* genBtn.addActionListener(e -> {
-            // TODO(기능 연결): 월 1회 생성 제한 체크
-            // TODO(기능 연결): 매월 1일 초기화 로직(서버/DB 연결)
-        	
-            String text =
-                    "이번 달은 기록의 시작은 빠르지만, 중간에 흐름이 끊기는 패턴이 보여요. "
-                  + "특히 ‘시간 부족’과 ‘계획 미흡’이 함께 등장하면서 재도전까지 이어지지 못한 날이 있었어요.\n\n"
-                  + "다음 달에는 목표를 크게 바꾸기보다, ‘기록 시간을 고정’하는 한 가지에만 집중해보면 좋아요. "
-                  + "예를 들면 하루 중 가장 부담이 덜한 시간(점심 직후/저녁 샤워 전 등)을 정하고, "
-                  + "그때는 ‘한 줄만’ 남기는 방식으로 시작해보는 걸 추천해요.\n\n"
-                  + "핵심은 ‘완벽’이 아니라 ‘지속’이에요. 작은 성공을 매일 하나씩 쌓아보자구요.";
+	private JComponent kvLine(String k, String v) {
+		JPanel row = new JPanel(new BorderLayout());
+		row.setOpaque(false);
 
-            insightSetter.accept(text);
-            applyInsightText(insightArea);
-            insightArea.setCaretPosition(0);
-        });*/
+		JLabel key = new JLabel(k);
+		key.setFont(UITheme.CAPTION);
+		key.setForeground(UITheme.RGB_140_140_140);
 
-        genBtn.addActionListener(e -> {
-            // 즉각적인 UI 반응
-            insightSetter.accept("에티가 데이터를 분석 중입니다... ✨");
-            applyInsightText(insightArea);
+		JLabel val = new JLabel(v);
+		val.setFont(UITheme.BODY_MED);
+		val.setForeground(UITheme.TEXT);
 
-            // 백그라운드 스레드 시작
-            new Thread(() -> {
-                try {
-                    // GPT API 호출
-                    String result = gptService.analyzeDummy(); 
+		row.add(key, BorderLayout.WEST);
+		row.add(val, BorderLayout.EAST);
+		return row;
+	}
 
-                    // UI 업데이트는 다시 Swing 스레드에서 실행
-                    SwingUtilities.invokeLater(() -> {
-                        insightSetter.accept(result);
-                        applyInsightText(insightArea);
-                        
-                        // 결과 다이얼로그 띄우기
-                        JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-                        GptResultDialog dialog = new GptResultDialog(topFrame, "✨ 에티의 AI 컨설팅", result);
-                        dialog.setVisible(true);
-                    });
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    SwingUtilities.invokeLater(() -> insightSetter.accept("분석 중 오류가 발생했습니다."));
-                }
-            }).start();
-        });
-        
-        body.add(hint);
-        body.add(Box.createVerticalStrut(10));
-        body.add(insightBox);
-        body.add(Box.createVerticalStrut(12));
-        body.add(genBtn);
-        body.add(Box.createVerticalGlue());
+	private JComponent buildStrengthWeakness(String strength, String weakness) {
+		JPanel p = new JPanel();
+		p.setOpaque(false);
+		p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
 
-        card.setBody(body);
-        return card;
-    }
+		p.add(simpleLine("강점", strength));
+		p.add(Box.createVerticalStrut(6));
+		p.add(simpleLine("보완", weakness));
 
-    private void applyInsightText(JTextArea area) {
-        String t = insightGetter.get();
-        if (t == null || t.isBlank()) {
-            area.setText("아직 인사이트가 없어요.\n월간 인사이트 생성 버튼을 눌러 생성해보세요.");
-            area.setForeground(new Color(80, 80, 90));
-        } else {
-            area.setText(t);
-            area.setForeground(UITheme.TEXT);
-        }
-    }
+		return p;
+	}
 
-    private void attachHeight(JComponent c, int h) {
-        c.setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
-        c.setPreferredSize(new Dimension(10, h));
-        c.setMinimumSize(new Dimension(10, h));
-    }
+	private JComponent simpleLine(String label, String value) {
+		JPanel row = new JPanel(new BorderLayout());
+		row.setOpaque(false);
 
-    private JComponent pill(String label, String value) {
-        JPanel p = new JPanel(new BorderLayout(10, 0));
-        p.setOpaque(true);
-        p.setBackground(new Color(250, 250, 252));
-        p.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(235, 235, 242), 1, true),
-                new EmptyBorder(10, 12, 10, 12)
-        ));
+		JLabel l = new JLabel(label);
+		l.setFont(UITheme.CAPTION);
+		l.setForeground(UITheme.RGB_140_140_140);
 
-        JLabel l = new JLabel(label);
-        l.setFont(UITheme.CAPTION);
-        l.setForeground(new Color(120, 120, 120));
+		JLabel v = new JLabel(value);
+		v.setFont(UITheme.BODY_MED);
+		v.setForeground(UITheme.TEXT);
 
-        JLabel v = new JLabel(value);
-        v.setFont(UITheme.BODY_MED);
-        v.setForeground(UITheme.TEXT);
+		row.add(l, BorderLayout.WEST);
+		row.add(v, BorderLayout.EAST);
+		return row;
+	}
 
-        p.add(l, BorderLayout.WEST);
-        p.add(v, BorderLayout.EAST);
-        return p;
-    }
+	private JComponent monthlyAIInsightCard() {
+		HomeCard card = new HomeCard("월간 AI 인사이트");
+
+		JPanel body = new JPanel();
+		body.setOpaque(false);
+		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+
+		JLabel hint = new JLabel("<html><div style='line-height:1.5; text-align:left;'>" + "매달 1회, 이번 달 기록을 요약해 다음 달 집중 포인트를 받아볼 수 있어요." + "</div></html>");
+		hint.setFont(UITheme.CAPTION.deriveFont(12f));
+		hint.setForeground(UITheme.RGB_120_120_120);
+		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+		JTextArea insightArea = new JTextArea();
+		insightArea.setEditable(false);
+		insightArea.setOpaque(false);
+		insightArea.setLineWrap(true);
+		insightArea.setWrapStyleWord(true);
+		insightArea.setFont(UITheme.BODY);
+		insightArea.setForeground(UITheme.TEXT);
+		insightArea.setBorder(new EmptyBorder(4, 4, 4, 4));
+
+		JPanel insightBox = new JPanel(new BorderLayout());
+		insightBox.setOpaque(true);
+		insightBox.setBackground(UITheme.RGB_245_245_248);
+		insightBox.setBorder(new EmptyBorder(12, 12, 12, 12));
+		insightBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+		JScrollPane scroll = new JScrollPane(insightArea);
+		scroll.setBorder(null);
+		scroll.setOpaque(false);
+		scroll.getViewport().setOpaque(false);
+		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+		scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+		insightBox.setPreferredSize(new Dimension(10, 220));
+		insightBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
+		insightBox.add(scroll, BorderLayout.CENTER);
+
+		applyInsightText(insightArea);
+
+		JButton genBtn = new JButton("월간 인사이트 생성");
+		genBtn.setFocusPainted(false);
+		genBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		genBtn.setBackground(UITheme.ACCENT_PURPLE);
+		genBtn.setForeground(UITheme.WHITE);
+		genBtn.setBorder(new EmptyBorder(10, 14, 10, 14));
+		genBtn.setFont(UITheme.BODY_MED);
+		genBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+		genBtn.addActionListener(e -> {
+
+			String text = "이번 달은 기록의 시작은 빠르지만, 중간에 흐름이 끊기는 패턴이 보여요. "
+					+ "특히 ‘시간 부족’과 ‘계획 미흡’이 함께 등장하면서 재도전까지 이어지지 못한 날이 있었어요.\n\n"
+					+ "다음 달에는 목표를 크게 바꾸기보다, ‘기록 시간을 고정’하는 한 가지에만 집중해보면 좋아요. "
+					+ "예를 들면 하루 중 가장 부담이 덜한 시간(점심 직후/저녁 샤워 전 등)을 정하고, " + "그때는 ‘한 줄만’ 남기는 방식으로 시작해보는 걸 추천해요.\n\n"
+					+ "핵심은 ‘완벽’이 아니라 ‘지속’이에요. 작은 성공을 매일 하나씩 쌓아보자구요.";
+
+			insightSetter.accept(text);
+			applyInsightText(insightArea);
+			insightArea.setCaretPosition(0);
+		});
+
+		body.add(hint);
+		body.add(Box.createVerticalStrut(10));
+		body.add(insightBox);
+		body.add(Box.createVerticalStrut(12));
+		body.add(genBtn);
+		body.add(Box.createVerticalGlue());
+
+		card.setBody(body);
+		return card;
+	}
+
+	private void applyInsightText(JTextArea area) {
+		String t = insightGetter.get();
+		if (t == null || t.isBlank()) {
+			area.setText("아직 인사이트가 없어요.\n월간 인사이트 생성 버튼을 눌러 생성해보세요.");
+			area.setForeground(UITheme.RGB_80_80_90);
+		} else {
+			area.setText(t);
+			area.setForeground(UITheme.TEXT);
+		}
+	}
+
+	private void attachHeight(JComponent c, int h) {
+		c.setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
+		c.setPreferredSize(new Dimension(10, h));
+		c.setMinimumSize(new Dimension(10, h));
+	}
+
+	private JComponent pill(String label, String value) {
+		JPanel p = new JPanel(new BorderLayout(10, 0));
+		p.setOpaque(true);
+		p.setBackground(UITheme.RGB_250_250_252);
+		p.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242, 1, true), new EmptyBorder(10, 12, 10, 12)));
+
+		JLabel l = new JLabel(label);
+		l.setFont(UITheme.CAPTION);
+		l.setForeground(UITheme.RGB_120_120_120);
+
+		JLabel v = new JLabel(value);
+		v.setFont(UITheme.BODY_MED);
+		v.setForeground(UITheme.TEXT);
+
+		p.add(l, BorderLayout.WEST);
+		p.add(v, BorderLayout.EAST);
+		return p;
+	}
+
 }

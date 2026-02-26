@@ -14,19 +14,19 @@ public class App {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
 
-            // 1. Look & Feel
+            // 룩앤필 설정
             FlatArcIJTheme.setup();
 
-            // 2. 폰트 로드
+            // 폰트 로드
             FontKit.init();
 
-            // 3. UI 테마 초기화
+            // UI 테마 초기화
             UITheme.ensureInit();
 
-            // 4. 전체 기본 폰트 적용
+            // 기본 폰트 적용
             setUIFont(FontKit.regular(14f));
 
-            // 5. 둥근 UI 옵션
+            // 라운드 옵션
             UIManager.put("Component.arc", 18);
             UIManager.put("Button.arc", 18);
             UIManager.put("TextComponent.arc", 14);

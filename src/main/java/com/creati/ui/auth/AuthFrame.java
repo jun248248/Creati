@@ -1,8 +1,11 @@
 package com.creati.ui.auth;
 
+import com.creati.model.User;
+import com.creati.service.AuthService;
 import com.creati.ui.main.MainFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.ui.main.AppState;
 import com.creati.dao.UserDao;
 import com.creati.dto.UserDto;
 import com.creati.model.LogRepository;
@@ -14,7 +17,6 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.nio.file.Path;
 
 public class AuthFrame extends JFrame {
 
@@ -43,7 +45,7 @@ public class AuthFrame extends JFrame {
 
 		setContentPane(root);
 
-		// 창 닫힐 때 영상 재생 리소스 정리
+		
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent e) {
@@ -55,15 +57,16 @@ public class AuthFrame extends JFrame {
 
 	private JComponent buildVideoPanel() {
 		JPanel p = new JPanel(new BorderLayout());
-		p.setBackground(new Color(20, 18, 28));
+		p.setBackground(UITheme.DARK_SURFACE);
 
 		try {
-			videoPanel = new VideoPanel(VIDEO_PATH);
+			videoPanel = new VideoPanel(
+					java.util.Objects.requireNonNull(getClass().getResource(VIDEO_RES)).toExternalForm());
 			p.add(videoPanel, BorderLayout.CENTER);
 		} catch (Throwable t) {
 			JLabel fallback = new JLabel("<html><center><b>영상 영역</b><br/>OpenJFX 설정 필요</center></html>",
 					SwingConstants.CENTER);
-			fallback.setForeground(Color.WHITE);
+			fallback.setForeground(UITheme.ON_DARK);
 			p.add(fallback, BorderLayout.CENTER);
 		}
 		return p;
@@ -84,28 +87,38 @@ public class AuthFrame extends JFrame {
 
 		JLabel hello = new JLabel("안녕하세요, Creati입니다.");
 		hello.setAlignmentX(Component.CENTER_ALIGNMENT);
+		hello.setHorizontalAlignment(SwingConstants.CENTER);
 		hello.setFont(FontKit.bold(26f));
 		hello.setForeground(UITheme.TEXT);
 
-		JLabel intro = new JLabel("성장 로그를 폴더로 정리하고, 재도전까지 이어가요.");
-		intro.setAlignmentX(Component.CENTER_ALIGNMENT);
+		JLabel intro = new JLabel(
+		    "<html><div style='text-align:center;'>"
+		    + "당신의 성장 기록을 차곡차곡 정리하고<br/>"
+		    + "다시 도전하는 순간까지 함께할게요."
+		    + "</div></html>"
+		);
 		intro.setFont(UITheme.BODY_MED);
 		intro.setForeground(UITheme.TEXT);
+		intro.setHorizontalAlignment(SwingConstants.CENTER);
+
+		JPanel introWrap = new JPanel(new BorderLayout());
+		introWrap.setOpaque(false);
+		introWrap.add(intro, BorderLayout.CENTER);
 
 		stack.add(hello);
 		stack.add(Box.createVerticalStrut(8));
-		stack.add(intro);
+		stack.add(introWrap);
 		stack.add(Box.createVerticalStrut(22));
 
 		JPanel card = new JPanel(new GridBagLayout());
-		card.setBackground(Color.WHITE);
-		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(230, 230, 235), 1),
+		card.setBackground(UITheme.SURFACE);
+		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UITheme.SURFACE_BORDER, 1),
 				new EmptyBorder(24, 28, 24, 28)));
 		card.setPreferredSize(new Dimension(460, 360));
 		card.setMaximumSize(new Dimension(460, 360));
 
 		JPanel contentPanel = new JPanel();
-		contentPanel.setBackground(Color.WHITE);
+		contentPanel.setBackground(UITheme.SURFACE);
 		contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
 
 		JPanel form = buildFormPanel();
@@ -132,7 +145,7 @@ public class AuthFrame extends JFrame {
 
 		loginBtn.addActionListener(e -> onLogin());
 
-		// 회원가입 화면으로 이동: 로그인 프레임 숨기고 SignupFrame 띄움
+		
 		signupBtn.addActionListener(e -> {
 			setVisible(false);
 			new SignupFrame(this).setVisible(true);
@@ -145,7 +158,7 @@ public class AuthFrame extends JFrame {
 
 		JButton findBtn = linkButton("아이디/비밀번호 찾기");
 		findBtn.setFont(UITheme.CAPTION);
-		findBtn.setForeground(new Color(150, 150, 150));
+		findBtn.setForeground(UITheme.LINK_MUTED);
 		findBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
 		findBtn.addActionListener(e -> {
 			FindAccountDialog dlg = new FindAccountDialog(this);
@@ -167,7 +180,7 @@ public class AuthFrame extends JFrame {
 
 	private JPanel buildFormPanel() {
 		JPanel form = new JPanel(new GridBagLayout());
-		form.setBackground(Color.WHITE);
+		form.setBackground(UITheme.SURFACE);
 
 		int formW = 320;
 		form.setPreferredSize(new Dimension(formW, 170));
@@ -244,15 +257,14 @@ public class AuthFrame extends JFrame {
 		    return;
 		}
 
-		// 로그인 성공 -> 메인으로 이동 (영상 정리)
+		
 		if (videoPanel != null)
 			videoPanel.stop();
 		dispose();
 		
-		LogRepository repository = new LogRepositoryImpl(); 
-	    LogService logService = new LogService(repository);
-		
-	    new MainFrame(id, logService).setVisible(true);
+		AppState.get().setCurrentUser(user);
+		new MainFrame().setVisible(true);
+
 	}
 
 	private void setFieldSize(JComponent field, Dimension d) {
@@ -273,7 +285,7 @@ public class AuthFrame extends JFrame {
 		JButton b = new JButton(text);
 		b.setFocusPainted(false);
 		b.setBackground(UITheme.ACCENT_PURPLE);
-		b.setForeground(Color.WHITE);
+		b.setForeground(UITheme.ON_DARK);
 		b.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
 		return b;
 	}
@@ -281,9 +293,9 @@ public class AuthFrame extends JFrame {
 	private JButton secondaryButton(String text) {
 		JButton b = new JButton(text);
 		b.setFocusPainted(false);
-		b.setBackground(new Color(245, 245, 248));
+		b.setBackground(UITheme.BTN_SECONDARY_BG);
 		b.setForeground(UITheme.TEXT);
-		b.setBorder(BorderFactory.createLineBorder(new Color(225, 225, 232), 1));
+		b.setBorder(BorderFactory.createLineBorder(UITheme.BTN_SECONDARY_BORDER, 1));
 		return b;
 	}
 

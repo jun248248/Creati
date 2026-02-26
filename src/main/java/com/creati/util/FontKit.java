@@ -13,7 +13,7 @@ public class FontKit {
     public static void init() {
         if (inited) return;
 
-        // assets/fonts에 넣은 Pretendard 9종 사용
+        
         load("Thin", "/fonts/Pretendard-Thin.ttf");
         load("ExtraLight", "/fonts/Pretendard-ExtraLight.ttf");
         load("Light", "/fonts/Pretendard-Light.ttf");
@@ -24,10 +24,10 @@ public class FontKit {
         load("ExtraBold", "/fonts/Pretendard-ExtraBold.ttf");
         load("Black", "/fonts/Pretendard-Black.ttf");
         
-        // 로고용 esamanru
+        
         load("EsamanruBold", "/fonts/esamanru-Bold.ttf");
 
-     // Material Icons
+     
         load("MaterialIcons", "/fonts/MaterialIcons-Regular.ttf");
 
         inited = true;
@@ -41,7 +41,7 @@ public class FontKit {
             GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(f);
         } catch (Exception e) {
             e.printStackTrace();
-            // fallback
+            
             base.put(key, new Font("SansSerif", Font.PLAIN, 12));
         }
     }
@@ -54,7 +54,6 @@ public class FontKit {
     public static Font materialIcon(float size) {
         return get("MaterialIcons", size);
     }
-
 
     public static Font thin(float size) { return get("Thin", size); }
     public static Font extraLight(float size) { return get("ExtraLight", size); }

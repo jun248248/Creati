@@ -7,20 +7,18 @@ import com.creati.util.UITheme;
 
 import java.awt.*;
 
-/**
- * 아이디 찾기 / 비밀번호 재설정 다이얼로그 (UI 전용)
- * - CardLayout으로 모드 전환
- * - 기능 연결은 TODO 주석 위치에 AuthService 붙이면 됨
- */
+import com.creati.util.FontKit;
+// DB(TODO): Wire up account recovery actions when DB is available.
+
 public class FindAccountDialog extends JDialog {
 
     private final CardLayout card = new CardLayout();
     private final JPanel cardPanel = new JPanel(card);
 
-    // 결과 표시(아이디 찾기)
+    
     private final JLabel idResultLabel = new JLabel("");
 
-    // 비번 재설정 단계 활성화
+    
     private final JTextField tfCode = new JTextField();
     private final JButton btnVerify = new JButton("확인");
     private final JPasswordField pfNew = new JPasswordField();
@@ -38,26 +36,26 @@ public class FindAccountDialog extends JDialog {
 
     private JPanel buildRoot() {
         JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(Color.WHITE);
+        root.setBackground(UITheme.WHITE);
         root.setBorder(new EmptyBorder(16, 16, 16, 16));
 
-        // 헤더
+        
         JPanel header = new JPanel();
         header.setOpaque(false);
         header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
 
         JLabel title = new JLabel("아이디 / 비밀번호 찾기");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        title.setFont(FontKit.bold(18f));
 
         JLabel subtitle = new JLabel("가입 시 등록한 정보로 계정을 찾을 수 있어요.");
-        subtitle.setForeground(new Color(0x666666));
+        subtitle.setForeground(UITheme.TEXT_SUBTLE);
         subtitle.setFont(subtitle.getFont().deriveFont(12f));
 
         header.add(title);
         header.add(Box.createVerticalStrut(6));
         header.add(subtitle);
 
-        // 탭 버튼(토글) - 디폴트로 아이디 찾기 선택
+        
         JToggleButton tabFindId = makeTabButton("아이디 찾기", true);
         JToggleButton tabResetPw = makeTabButton("비밀번호 재설정", false);
 
@@ -73,7 +71,7 @@ public class FindAccountDialog extends JDialog {
         tabs.add(tabFindId);
         tabs.add(tabResetPw);
 
-        // 카드(폼 영역)
+        
         cardPanel.setOpaque(false);
         cardPanel.add(buildFindIdCard(), "FIND_ID");
         cardPanel.add(buildResetPwCard(), "RESET_PW");
@@ -94,28 +92,27 @@ public class FindAccountDialog extends JDialog {
         JButton btnPrimary = new JButton("조회");
         stylePrimary(btnPrimary);
 
-        // 모드에 따라 primary 텍스트 변경
         tabFindId.addActionListener(e -> btnPrimary.setText("조회"));
         tabResetPw.addActionListener(e -> btnPrimary.setText("재설정"));
 
-        // primary 동작(기능 연결 포인트)
+        
         btnPrimary.addActionListener(e -> {
             if (tabFindId.isSelected()) {
-                // 아이디 찾기 → 조회
-                // TODO: AuthService.findId(phone, email) 연결
-                // 지금은 UI 시연용 샘플
-                boolean userExists = true; // TODO: 실제로는 DB 조회 결과에 따라
+                
+                // DB
+                
+                boolean userExists = true; // DB
                 
                 if (userExists) {
-                    idResultLabel.setForeground(new Color(0x2E7D32));
+                    idResultLabel.setForeground(UITheme.SUCCESS_TEXT_2);
                     idResultLabel.setText("조회된 아이디는 abc123 입니다. (샘플)");
                 } else {
-                    idResultLabel.setForeground(new Color(0xD32F2F));
+                    idResultLabel.setForeground(UITheme.ERROR);
                     idResultLabel.setText("가입하지 않은 회원입니다.");
                 }
             } else {
-                // 비밀번호 재설정 → 최종 재설정
-                // TODO: AuthService.resetPassword(id, newPw) 연결
+                
+                // DB
                 JOptionPane.showMessageDialog(this, "비밀번호가 재설정되었습니다. (샘플)");
                 dispose();
             }
@@ -126,7 +123,6 @@ public class FindAccountDialog extends JDialog {
         bottom.setBorder(new EmptyBorder(16, 0, 0, 0));
         bottom.add(btnClose);
         bottom.add(btnPrimary);
-
 
         root.add(header, BorderLayout.NORTH);
 
@@ -142,9 +138,9 @@ public class FindAccountDialog extends JDialog {
         return root;
     }
 
-    // =========================
-    // Cards
-    // =========================
+    
+    
+    
 
     private JPanel buildFindIdCard() {
         JPanel card = makeCard();
@@ -159,9 +155,9 @@ public class FindAccountDialog extends JDialog {
         styleField(tfEmail);
 
         idResultLabel.setOpaque(true);
-        idResultLabel.setBackground(new Color(0xFAFAFD));
+        idResultLabel.setBackground(UITheme.SURFACE_SUBTLE);
         idResultLabel.setBorder(new EmptyBorder(10, 12, 10, 12));
-        idResultLabel.setForeground(new Color(0x666666));
+        idResultLabel.setForeground(UITheme.TEXT_SUBTLE);
         idResultLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         card.add(makeFieldBlock("전화번호", tfPhone));
@@ -177,7 +173,7 @@ public class FindAccountDialog extends JDialog {
         JPanel innerContent = new JPanel();
         innerContent.setLayout(new BoxLayout(innerContent, BoxLayout.Y_AXIS));
         innerContent.setAlignmentX(Component.LEFT_ALIGNMENT);
-        innerContent.setBackground(Color.WHITE);
+        innerContent.setBackground(UITheme.WHITE);
 
         JTextField tfId = new JTextField();
         JTextField tfEmail = new JTextField();
@@ -209,17 +205,17 @@ public class FindAccountDialog extends JDialog {
         styleField(pfNew2);
 
         JLabel hint = new JLabel("인증 완료 후 새 비밀번호를 설정할 수 있어요.");
-        hint.setForeground(new Color(0x666666));
+        hint.setForeground(UITheme.TEXT_SUBTLE);
         hint.setFont(hint.getFont().deriveFont(12f));
         hint.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 초기 비활성
+        
         tfCode.setEnabled(false);
         btnVerify.setEnabled(false);
         pfNew.setEnabled(false);
         pfNew2.setEnabled(false);
 
-        // 인증번호 요청
+        
         btnReqCode.addActionListener(e -> {
             String id = tfId.getText().trim();
             String email = tfEmail.getText().trim();
@@ -231,20 +227,20 @@ public class FindAccountDialog extends JDialog {
                 toast("이메일을 입력하세요.");
                 return;
             }
-            // TODO: AuthService.requestResetCode(id, email) 연결
+            // DB
             tfCode.setEnabled(true);
             btnVerify.setEnabled(true);
             toast("인증번호를 이메일로 전송했습니다. (샘플)");
         });
 
-        // 인증 확인
+        
         btnVerify.addActionListener(e -> {
             String code = tfCode.getText().trim();
             if (code.isEmpty()) {
                 toast("인증번호를 입력하세요.");
                 return;
             }
-            // TODO: AuthService.verifyCode(code) 연결
+            // DB
             pfNew.setEnabled(true);
             pfNew2.setEnabled(true);
             toast("인증 완료! 새 비밀번호를 설정하세요. (샘플)");
@@ -267,7 +263,7 @@ public class FindAccountDialog extends JDialog {
         innerContent.add(makeFieldBlock("새 비밀번호 확인", pfNew2));
         innerContent.add(Box.createVerticalStrut(10));
 
-        // 스크롤 패널
+        
         JScrollPane scrollPane = new JScrollPane(innerContent);
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
@@ -276,11 +272,11 @@ public class FindAccountDialog extends JDialog {
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
-        // 외부 카드(흰색 박스)
+        
         JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(Color.WHITE);
+        card.setBackground(UITheme.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xE9E9EE), 1, true),
+                BorderFactory.createLineBorder(UITheme.DIVIDER_2, 1, true),
                 new EmptyBorder(14, 14, 14, 14)
         ));
         card.setPreferredSize(new Dimension(380, 270));
@@ -289,9 +285,9 @@ public class FindAccountDialog extends JDialog {
         return wrapCard(card);
     }
 
-    // =========================
-    // UI helpers
-    // =========================
+    
+    
+    
 
     private JPanel wrapCard(JPanel inner) {
         JPanel wrap = new JPanel(new BorderLayout());
@@ -304,9 +300,9 @@ public class FindAccountDialog extends JDialog {
     private JPanel makeCard() {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBackground(Color.WHITE);
+        p.setBackground(UITheme.WHITE);
         p.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xE9E9EE), 1, true),
+                BorderFactory.createLineBorder(UITheme.DIVIDER_2, 1, true),
                 new EmptyBorder(14, 14, 14, 14)
         ));
         return p;
@@ -329,7 +325,7 @@ public class FindAccountDialog extends JDialog {
 
     private JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(new Color(0x666666));
+        l.setForeground(UITheme.TEXT_SUBTLE);
         l.setFont(l.getFont().deriveFont(12f));
         l.setAlignmentX(Component.LEFT_ALIGNMENT);
         return l;
@@ -341,8 +337,8 @@ public class FindAccountDialog extends JDialog {
         b.setBorderPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.setPreferredSize(new Dimension(130, 38));
-        b.setFont(b.getFont().deriveFont(Font.BOLD, 12.5f));
-        return b;
+        b.setFont(FontKit.semiBold(12.5f));
+return b;
     }
 
     private void applyTabStyle(JToggleButton on, JToggleButton off) {
@@ -351,21 +347,21 @@ public class FindAccountDialog extends JDialog {
     }
 
     private void styleTabOn(AbstractButton b) {
-        b.setBackground(new Color(0xFFF3CC));
-        b.setForeground(new Color(0x3A2A00));
+        b.setBackground(UITheme.WARNING_BG);
+        b.setForeground(UITheme.WARN_TEXT_DARK);
     }
 
     private void styleTabOff(AbstractButton b) {
-        b.setBackground(new Color(0xF5F6FA));
-        b.setForeground(new Color(0x333333));
+        b.setBackground(UITheme.BG_ALT);
+        b.setForeground(UITheme.TEXT_STRONG);
     }
 
     private void stylePrimary(JButton b) {
         b.setFocusPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        b.setFont(b.getFont().deriveFont(Font.BOLD, 13f));
-        b.setBackground(UITheme.ACCENT_PURPLE);
-        b.setForeground(Color.WHITE);
+        b.setFont(FontKit.semiBold(13f));
+b.setBackground(UITheme.ACCENT_PURPLE);
+        b.setForeground(UITheme.WHITE);
         b.setBorder(new EmptyBorder(10, 18, 10, 18));
         b.setPreferredSize(new Dimension(140, 44));
     }
@@ -373,11 +369,11 @@ public class FindAccountDialog extends JDialog {
     private void styleGhost(JButton b) {
         b.setFocusPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        b.setFont(b.getFont().deriveFont(Font.BOLD, 13f));
-        b.setBackground(new Color(245, 245, 248));
+        b.setFont(FontKit.semiBold(13f));
+b.setBackground(UITheme.RGB_245_245_248);
         b.setForeground(UITheme.TEXT);
         b.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(225, 225, 232), 1, true),
+                BorderFactory.createLineBorder(UITheme.RGB_225_225_232, 1, true),
                 new EmptyBorder(10, 20, 10, 20)
         ));
         b.setPreferredSize(new Dimension(140, 44));
@@ -386,9 +382,9 @@ public class FindAccountDialog extends JDialog {
     private void styleOutline(JButton b) {
         b.setFocusPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        b.setBackground(Color.WHITE);
-        b.setForeground(new Color(0x6D4CFF));
-        b.setBorder(BorderFactory.createLineBorder(new Color(0xCFC9FF), 1, true));
+        b.setBackground(UITheme.WHITE);
+        b.setForeground(UITheme.ACCENT_PURPLE);
+        b.setBorder(BorderFactory.createLineBorder(UITheme.ACCENT_LAVENDER_BORDER, 1, true));
         b.setPreferredSize(new Dimension(120, 38));
     }
 
@@ -396,7 +392,7 @@ public class FindAccountDialog extends JDialog {
         c.setPreferredSize(new Dimension(10, 38));
         c.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         c.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xDDDEE6), 1, true),
+                BorderFactory.createLineBorder(UITheme.NEUTRAL_200, 1, true),
                 new EmptyBorder(8, 10, 8, 10)
         ));
         c.setFont(c.getFont().deriveFont(13f));
