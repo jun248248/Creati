@@ -6,7 +6,7 @@ public final class Services {
 
     private Services() {}
 
-    public static final LogService LOGS = new LogService(new LogRepositoryInMemory());
+    public static final LogService LOGS = new LogService();
     public static final QnaService QNA = new QnaService(new QnaRepositoryInMemory());
     public static final DraftService DRAFTS = new DraftService(new DraftRepositoryInMemory());
 

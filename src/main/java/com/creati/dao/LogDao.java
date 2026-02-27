@@ -1,277 +1,145 @@
 package com.creati.dao;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import com.creati.database.DBConnectionMgr;
+import com.creati.model.LogPost;
+import com.creati.model.LogStatus;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.creati.database.DBConnectionMgr;
-import com.creati.dto.LogDto;
-import com.creati.dto.MyLogListDto;
-import com.creati.dto.PublicLogListDto;
-
 public class LogDao {
+    private DBConnectionMgr pool;
 
-	private DBConnectionMgr pool;
+    public LogDao() {
+        pool = DBConnectionMgr.getInstance();
+    }
 
-	public LogDao() {
-		pool = DBConnectionMgr.getInstance();
-	}
+    public List<LogPost> selectAllLogs() {
+        List<LogPost> list = new ArrayList<>();
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        
+        String sql = "SELECT l_id, l_title, l_result_status, created_at, l_process, i_id FROM log ORDER BY created_at DESC";
 
-	/*
-	 * 작성자 ID로 게시글 목록 조회
-	 */
-	public List<LogDto> findByUserId(String userId) {
+        try {
+            con = pool.getConnection();
+            pstmt = con.prepareStatement(sql);
+            rs = pstmt.executeQuery();
 
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
+            while (rs.next()) {
+                list.add(mapResultSetToLogPost(rs));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(con, pstmt, rs);
+        }
+        return list;
+    }
 
-		List<LogDto> list = new ArrayList<>();
+    public LogPost selectLogById(String id) {
+        long l_id;
+        try {
+            l_id = Long.parseLong(id);
+        } catch (Exception e) {
+            return null;
+        }
 
-		String sql = """
-				SELECT *
-				FROM log
-				WHERE u_id = ?
-				ORDER BY l_created_at DESC
-				""";
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        String sql = "SELECT l_id, l_title, l_result_status, created_at, l_process, i_id FROM log WHERE l_id = ?";
 
-		try {
-			conn = pool.getConnection();
-			pstmt = conn.prepareStatement(sql);
+        try {
+            con = pool.getConnection();
+            pstmt = con.prepareStatement(sql);
+            pstmt.setLong(1, l_id);
+            rs = pstmt.executeQuery();
 
-			pstmt.setString(1, userId);
+            if (rs.next()) {
+                return mapResultSetToLogPost(rs);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(con, pstmt, rs);
+        }
+        return null;
+    }
 
-			rs = pstmt.executeQuery();
+    private LogPost mapResultSetToLogPost(ResultSet rs) throws SQLException {
+        String statusStr = rs.getString("l_result_status"); // SUCCESS, FAIL, ONGOING 등
+        
+        LogStatus status = LogStatus.IN_PROGRESS;
+        if (statusStr != null) {
+            status = switch (statusStr.toUpperCase()) {
+                case "SUCCESS" -> LogStatus.DONE;
+                case "FAIL" -> LogStatus.NEEDS_IMPROVEMENT;
+                default -> LogStatus.IN_PROGRESS;
+            };
+        }
+        
+        return new LogPost(
+            String.valueOf(rs.getLong("l_id")),
+            rs.getString("i_id"), // i_id를 분야(field)로 매핑
+            null,
+            status,
+            rs.getString("l_title"),
+            rs.getTimestamp("created_at").toLocalDateTime().toLocalDate(), // [수정]
+            true,
+            rs.getString("l_process"), // l_process를 내용(whatIDid)으로 매핑
+            null, null, null, null, null
+        );
+    }
+    
+    /**
+     * 로그를 저장하거나 기존 로그를 업데이트합니다.
+     */
+ // LogDao.java의 upsertLog 메서드 보완
+    public boolean upsertLog(LogPost vo) {
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        
+        // ON DUPLICATE KEY UPDATE를 사용하여 QNA 데이터도 처리
+        String sql = "INSERT INTO log (l_id, l_title, l_result_status, created_at, l_process, i_id) " +
+                     "VALUES (?, ?, ?, ?, ?, ?) " +
+                     "ON DUPLICATE KEY UPDATE l_title=?, l_process=?, i_id=?";
 
-			while (rs.next()) {
+        try {
+            con = pool.getConnection(); //
+            pstmt = con.prepareStatement(sql);
 
-				LogDto dto = new LogDto();
+            // ID 처리: qna_ 등의 접두사가 있다면 숫자만 추출하거나 현재 시간을 사용
+            long lid;
+            try {
+                // 숫자만 있는 경우 파싱, 문자열이 섞인 경우 타임스탬프 활용
+                String cleanId = vo.id.replaceAll("[^0-9]", ""); 
+                lid = cleanId.isEmpty() ? System.currentTimeMillis() : Long.parseLong(cleanId);
+            } catch (NumberFormatException e) {
+                lid = System.currentTimeMillis();
+            }
 
-				dto.setId(rs.getLong("l_id"));
-				dto.setUserId(rs.getString("u_id"));
-				dto.setTitle(rs.getString("l_title"));
-				dto.setContentTitle(rs.getString("l_content_title"));
-				dto.setContentUrl(rs.getString("l_content_url"));
-				dto.setPlatformId(rs.getLong("pf_id"));
-				dto.setCategoryId(rs.getLong("c_id"));
-				dto.setTryContent(rs.getString("l_try_content"));
-				dto.setResultStatus(rs.getString("l_result_status"));
-				dto.setFailResult(rs.getString("l_fail_result"));
-				dto.setFailReason(rs.getString("l_failure_reason"));
-				dto.setIsPublic(rs.getBoolean("l_is_public"));
-				dto.setIsDraft(rs.getBoolean("l_is_draft"));
-				dto.setViewCount(rs.getLong("l_view_count"));
+            pstmt.setLong(1, lid);
+            pstmt.setString(2, vo.title);
+            pstmt.setString(3, (vo.status != null) ? vo.status.name() : "ONGOING");
+            pstmt.setTimestamp(4, java.sql.Timestamp.valueOf(vo.createdAt.atStartOfDay()));
+            // QNA의 경우 whatIDid(질문내용)가 l_process 컬럼에 매핑되도록 설정
+            pstmt.setString(5, vo.whatIDid); 
+            pstmt.setString(6, vo.field);
 
-				if (rs.getTimestamp("l_created_at") != null) {
-					dto.setCreatedAt(rs.getTimestamp("l_created_at").toLocalDateTime());
-				}
+            // UPDATE 파트
+            pstmt.setString(7, vo.title);
+            pstmt.setString(8, vo.whatIDid);
+            pstmt.setString(9, vo.field);
 
-				if (rs.getTimestamp("l_updated_at") != null) {
-					dto.setUpdatedAt(rs.getTimestamp("l_updated_at").toLocalDateTime());
-				}
-
-				list.add(dto);
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			pool.freeConnection(conn, pstmt, rs);
-		}
-
-		return list;
-	}
-
-	/*
-	 내 로그 리스트 조회 (요약용)
-	 */
-	public List<MyLogListDto> findMyLogList(String userId, Long categoryId) {
-		
-	    Connection conn = null;
-	    PreparedStatement pstmt = null;
-	    ResultSet rs = null;
-
-	    List<MyLogListDto> list = new ArrayList<>();
-
-	    String sql = """
-	            SELECT 
-	                l.l_id,
-	                l.l_result_status,
-	                l.l_title,
-	                l.l_created_at,
-	                c.c_name
-	            FROM log l
-	            JOIN category c ON l.c_id = c.c_id
-	            WHERE l.u_id = ?
-	            """;
-
-	    boolean hasCategory = (categoryId != null && categoryId > 0);
-		if (hasCategory) {
-			sql += " AND l.c_id = ? \n"; 
-		}
-	
-		sql += " ORDER BY l.l_created_at DESC";
-	    
-	    try {
-	        conn = pool.getConnection();
-	        pstmt = conn.prepareStatement(sql);
-
-	        pstmt.setString(1, userId);
-	        if (hasCategory) {
-				pstmt.setLong(2, categoryId);
-			}
-
-	        rs = pstmt.executeQuery();
-
-	        while (rs.next()) {
-
-	            MyLogListDto dto = new MyLogListDto();
-
-	            dto.setId(rs.getLong("l_id"));
-	            dto.setResultStatus(rs.getString("l_result_status"));
-	            dto.setTitle(rs.getString("l_title"));
-	            dto.setCategoryName(rs.getString("c_name"));
-
-	            if (rs.getTimestamp("l_created_at") != null) {
-	                dto.setCreatedAt(
-	                    rs.getTimestamp("l_created_at").toLocalDateTime()
-	                );
-	            }
-
-	            list.add(dto);
-	        }
-
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	    } finally {
-	        pool.freeConnection(conn, pstmt, rs);
-	    }
-
-	    return list;
-	}
-	
-	/*
-	 로그 상세 조회
-	 */
-	public LogDto findById(Long logId) {
-
-	    Connection conn = null;
-	    PreparedStatement pstmt = null;
-	    ResultSet rs = null;
-
-	    LogDto dto = null;
-
-	    String sql = """
-	            SELECT *
-	            FROM log
-	            WHERE l_id = ?
-	            """;
-
-	    try {
-	        conn = pool.getConnection();
-	        pstmt = conn.prepareStatement(sql);
-
-	        pstmt.setLong(1, logId);
-
-	        rs = pstmt.executeQuery();
-
-	        if (rs.next()) {
-
-	            dto = new LogDto();
-
-	            dto.setId(rs.getLong("l_id"));
-	            dto.setUserId(rs.getString("u_id"));
-	            dto.setTitle(rs.getString("l_title"));
-	            dto.setContentTitle(rs.getString("l_content_title"));
-	            dto.setContentUrl(rs.getString("l_content_url"));
-	            dto.setPlatformId(rs.getLong("pf_id"));
-	            dto.setCategoryId(rs.getLong("c_id"));
-	            dto.setTryContent(rs.getString("l_try_content"));
-	            dto.setResultStatus(rs.getString("l_result_status"));
-	            dto.setFailResult(rs.getString("l_fail_result"));
-	            dto.setFailReason(rs.getString("l_failure_reason"));
-	            dto.setIsPublic(rs.getBoolean("l_is_public"));
-	            dto.setIsDraft(rs.getBoolean("l_is_draft"));
-	            dto.setViewCount(rs.getLong("l_view_count"));
-
-	            if (rs.getTimestamp("l_created_at") != null) {
-	                dto.setCreatedAt(
-	                    rs.getTimestamp("l_created_at").toLocalDateTime()
-	                );
-	            }
-
-	            if (rs.getTimestamp("l_updated_at") != null) {
-	                dto.setUpdatedAt(
-	                    rs.getTimestamp("l_updated_at").toLocalDateTime()
-	                );
-	            }
-	        }
-
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	    } finally {
-	        pool.freeConnection(conn, pstmt, rs);
-	    }
-
-	    return dto;
-	}
-	
-	/*
-	 전체 공개 게시글 목록 조회
-	 */
-	public List<PublicLogListDto> findAllPublicLogs() {
-
-	    Connection conn = null;
-	    PreparedStatement pstmt = null;
-	    ResultSet rs = null;
-
-	    List<PublicLogListDto> list = new ArrayList<>();
-
-	    String sql = """
-	            SELECT 
-	                l_id,
-	                l_title,
-	                u_id,
-	                l_result_status,
-	                l_created_at
-	            FROM log
-	            WHERE l_is_public = 1
-	              AND l_is_draft = 0
-	            ORDER BY l_created_at DESC
-	            """;
-
-	    try {
-	        conn = pool.getConnection();
-	        pstmt = conn.prepareStatement(sql);
-
-	        rs = pstmt.executeQuery();
-
-	        while (rs.next()) {
-
-	            PublicLogListDto dto = new PublicLogListDto();
-
-	            dto.setId(rs.getLong("l_id"));
-	            dto.setTitle(rs.getString("l_title"));
-	            dto.setUserId(rs.getString("u_id"));
-	            dto.setResultStatus(rs.getString("l_result_status"));
-
-	            if (rs.getTimestamp("l_created_at") != null) {
-	                dto.setCreatedAt(
-	                        rs.getTimestamp("l_created_at").toLocalDateTime()
-	                );
-	            }
-
-	            list.add(dto);
-	        }
-
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	    } finally {
-	        pool.freeConnection(conn, pstmt, rs);
-	    }
-
-	    return list;
-	}
+            return pstmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            pool.freeConnection(con, pstmt); //
+        }
+    }
 }

@@ -42,9 +42,11 @@ public class WriteLogController {
         Draft d = view.snapshotFromWizard(false);
         d.isDraft = false;
 
-        Services.DRAFTS.upsert(d); // DB(TODO)
+        // TODO: DRAFTS 서비스도 DB 연동 시 upsert 로직 확인 필요
+        Services.DRAFTS.upsert(d); 
         view.clearDirty();
-
+        
+        // [수정 포인트] LogPost 생성 시 DB와 호환되는 숫자 ID 부여
         LogPost saved = view.toLogPost(d);
         
         Services.LOGS.upsert(saved);
