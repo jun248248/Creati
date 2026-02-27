@@ -22,23 +22,18 @@ import java.util.List;
 
 public class LogDetailView extends JPanel {
 
-	
 	private static final int SECTION_BODY_INDENT = 8;
 
-	
 	private static final String DUMMY_TEXT = "아직 작성되지 않았어요. 다음 기록에서 채워볼까요?";
 	private static final String DUMMY_PLAN = "다음에는 어떤 방식으로 시도해볼까요?";
 
-	
 	private final Runnable onBack;
 	private LogPost boundPost;
 	private final Runnable onEdit;
 	private final Runnable onDelete;
 
-	
 	private String postAuthor = "나"; // DB(TODO): 원글 작성자 닉네임/ID
 
-	
 	private final JLabel titleLabel = new JLabel();
 	private final JLabel metaLabel = new JLabel();
 	private final JLabel viewsCountLabel = new JLabel("0");
@@ -48,15 +43,12 @@ public class LogDetailView extends JPanel {
 	private final Chip categoryChip = new Chip();
 	private final Chip statusChip = new Chip();
 
-	
 	private final RoundedButton backBtn = new RoundedButton("뒤로가기");
 	private final RoundedButton editBtn = new RoundedButton("수정하기");
 	private final RoundedButton deleteBtn = new RoundedButton("삭제하기");
 
-	
 	private JScrollPane scroll;
 
-	
 	private JPanel contentCard;
 	private JPanel socialCard;
 	private JPanel secExpectation;
@@ -69,7 +61,6 @@ public class LogDetailView extends JPanel {
 	private JPanel secLink;
 	private JPanel secSocial;
 
-	
 	private JComponent divAfterExpectation;
 	private JComponent divAfterResult;
 	private JComponent divAfterFactors;
@@ -79,10 +70,9 @@ public class LogDetailView extends JPanel {
 	private JComponent divAfterGrowth;
 	private JComponent divAfterLink;
 
-	
 	private JTextArea expectationArea;
 
-	private Chip moodChip; 
+	private Chip moodChip;
 	private JPanel goodChipsWrap;
 	private JTextArea painArea;
 
@@ -91,7 +81,7 @@ public class LogDetailView extends JPanel {
 	private JTextArea processArea;
 
 	private Chip planGapChip;
-	private JPanel planGapDetailWrap; 
+	private JPanel planGapDetailWrap;
 	private JTextArea planGapDetailArea;
 
 	private JTextArea learningArea;
@@ -104,20 +94,17 @@ public class LogDetailView extends JPanel {
 	private final JLabel linkLabel = new JLabel();
 	private JLabel linkPointLabel;
 
-	
 	private JPanel reactionRow;
 	private JPanel commentsWrap;
 	private JTextField commentField;
 	private RoundedButton commentSubmitBtn;
 
-	
 	private JLabel empathyMini;
 	private JLabel cheerMini;
 	private JLabel praiseMini;
 	private JLabel comfortMini;
 	private JLabel retryMini;
 
-	
 	private JLabel commentCountInline;
 
 	public LogDetailView(Runnable onBack, Runnable onEdit) {
@@ -125,14 +112,14 @@ public class LogDetailView extends JPanel {
 	}
 
 	public LogDetailView(Runnable onBack, Runnable onEdit, Runnable onDelete) {
-		this.onBack = (onBack == null) ? () -> { } : onBack;
+		this.onBack = (onBack == null) ? () -> {
+		} : onBack;
 		this.onEdit = (onEdit == null) ? () -> JOptionPane.showMessageDialog(this, "수정 기능은 준비 중이에요.") : onEdit;
 		this.onDelete = (onDelete == null) ? this::confirmDelete : onDelete;
 
 		UITheme.ensureInit();
 		FontKit.init();
 
-		
 		configureDetailChip(fieldChip);
 		configureDetailChip(categoryChip);
 		configureDetailChip(statusChip);
@@ -146,7 +133,8 @@ public class LogDetailView extends JPanel {
 	}
 
 	private static void configureDetailChip(Chip c) {
-		if (c == null) return;
+		if (c == null)
+			return;
 		c.setFont(FontKit.medium(12.5f));
 		c.setSizing(12, 5, 26);
 	}
@@ -164,7 +152,8 @@ public class LogDetailView extends JPanel {
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				String url = stripHtml(linkLabel.getText());
-				if (url.isEmpty()) return;
+				if (url.isEmpty())
+					return;
 				openLink(url);
 			}
 		});
@@ -175,7 +164,6 @@ public class LogDetailView extends JPanel {
 		top.setOpaque(false);
 		top.setBorder(new EmptyBorder(8, 20, 8, 20));
 
-		
 		styleTopButton(backBtn, UITheme.WHITE, UITheme.DARK_TEXT, false);
 		backBtn.addActionListener(e -> onBack.run());
 
@@ -201,7 +189,6 @@ public class LogDetailView extends JPanel {
 		wrap.add(left, BorderLayout.WEST);
 		wrap.add(right, BorderLayout.EAST);
 
-		
 		JPanel divider = new JPanel();
 		divider.setOpaque(false);
 		divider.setBorder(new MatteBorder(0, 0, 1, 0, UITheme.HOVER_BG_2));
@@ -246,10 +233,8 @@ public class LogDetailView extends JPanel {
 	private JComponent buildTitleCard() {
 		JPanel card = cardBase();
 		card.setLayout(new BorderLayout());
-		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
-				new EmptyBorder(18, 18, 18, 18)
-		));
+		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
+				new EmptyBorder(18, 18, 18, 18)));
 
 		titleLabel.setFont(FontKit.extraBold(26f));
 		titleLabel.setForeground(UITheme.TEXT);
@@ -290,13 +275,12 @@ public class LogDetailView extends JPanel {
 		return card;
 	}
 
-	
 	private JComponent buildMetaStatsRight() {
 		JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 0));
 		right.setOpaque(false);
-		right.add(buildStatItem(0xE8F4, viewsCountLabel));     
-		right.add(buildStatItem(0xE87D, reactsCountLabel));    
-		right.add(buildStatItem(0xE0B9, commentsCountLabel));  
+		right.add(buildStatItem(0xE8F4, viewsCountLabel));
+		right.add(buildStatItem(0xE87D, reactsCountLabel));
+		right.add(buildStatItem(0xE0B9, commentsCountLabel));
 		return right;
 	}
 
@@ -315,23 +299,18 @@ public class LogDetailView extends JPanel {
 		return p;
 	}
 
-	
 	private JPanel buildContentCard() {
 		JPanel card = cardBase();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
-				new EmptyBorder(18, 18, 18, 18)
-		));
+		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
+				new EmptyBorder(18, 18, 18, 18)));
 
-		
 		expectationArea = makeArea();
 		secExpectation = sectionBlock("기대했던 점", expectationArea);
 		card.add(secExpectation);
 		divAfterExpectation = sectionDivider();
 		card.add(divAfterExpectation);
 
-		
 		JPanel resultBody = new JPanel();
 		resultBody.setOpaque(false);
 		resultBody.setLayout(new BoxLayout(resultBody, BoxLayout.Y_AXIS));
@@ -364,7 +343,6 @@ public class LogDetailView extends JPanel {
 		divAfterResult = sectionDivider();
 		card.add(divAfterResult);
 
-		
 		factorsChipsWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
 		factorsChipsWrap.setOpaque(false);
 		factorsChipsWrap.setAlignmentX(LEFT_ALIGNMENT);
@@ -380,7 +358,6 @@ public class LogDetailView extends JPanel {
 		divAfterProcess = sectionDivider();
 		card.add(divAfterProcess);
 
-		
 		JPanel planBody = new JPanel();
 		planBody.setOpaque(false);
 		planBody.setLayout(new BoxLayout(planBody, BoxLayout.Y_AXIS));
@@ -469,7 +446,6 @@ public class LogDetailView extends JPanel {
 		divAfterGrowth = sectionDivider();
 		card.add(divAfterGrowth);
 
-		
 		JPanel linkBody = new JPanel();
 		linkBody.setOpaque(false);
 		linkBody.setLayout(new BoxLayout(linkBody, BoxLayout.Y_AXIS));
@@ -492,22 +468,18 @@ public class LogDetailView extends JPanel {
 	private JPanel buildSocialCard() {
 		JPanel card = cardBase();
 		card.setLayout(new BorderLayout());
-		card.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
-				new EmptyBorder(18, 18, 18, 18)
-		));
+		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UITheme.DIVIDER, 1),
+				new EmptyBorder(18, 18, 18, 18)));
 		card.add(buildSocialBlock(), BorderLayout.CENTER);
 		return card;
 	}
 
-	
 	private JPanel buildSocialBlock() {
 		JPanel wrap = new JPanel();
 		wrap.setOpaque(false);
 		wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
 		wrap.setAlignmentX(LEFT_ALIGNMENT);
 
-		
 		JPanel reactHeadLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 		reactHeadLine.setOpaque(false);
 		reactHeadLine.setAlignmentX(LEFT_ALIGNMENT);
@@ -528,16 +500,15 @@ public class LogDetailView extends JPanel {
 		comfortMini = new JLabel("0");
 		retryMini = new JLabel("0");
 
-		reactHeadLine.add(buildMiniCount(0xE87D, empathyMini)); 
-		reactHeadLine.add(buildMiniCount(0xE80E, cheerMini));   
-		reactHeadLine.add(buildMiniCount(0xEA23, praiseMini));  
-		reactHeadLine.add(buildMiniCount(0xE7F2, comfortMini)); 
-		reactHeadLine.add(buildMiniCount(0xE5D5, retryMini));   
+		reactHeadLine.add(buildMiniCount(0xE87D, empathyMini));
+		reactHeadLine.add(buildMiniCount(0xE80E, cheerMini));
+		reactHeadLine.add(buildMiniCount(0xEA23, praiseMini));
+		reactHeadLine.add(buildMiniCount(0xE7F2, comfortMini));
+		reactHeadLine.add(buildMiniCount(0xE5D5, retryMini));
 
 		wrap.add(reactHeadLine);
 		wrap.add(Box.createVerticalStrut(10));
 
-		
 		reactionRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
 		reactionRow.setOpaque(false);
 		reactionRow.setAlignmentX(LEFT_ALIGNMENT);
@@ -546,7 +517,6 @@ public class LogDetailView extends JPanel {
 		wrap.add(reactionRow);
 		wrap.add(Box.createVerticalStrut(18));
 
-		
 		JPanel commentHeadLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 		commentHeadLine.setOpaque(false);
 		commentHeadLine.setAlignmentX(LEFT_ALIGNMENT);
@@ -562,7 +532,7 @@ public class LogDetailView extends JPanel {
 		commentHeadLine.add(commentDot);
 
 		commentCountInline = new JLabel("0");
-		commentHeadLine.add(buildMiniCount(0xE0B9, commentCountInline)); 
+		commentHeadLine.add(buildMiniCount(0xE0B9, commentCountInline));
 
 		wrap.add(commentHeadLine);
 		wrap.add(Box.createVerticalStrut(10));
@@ -575,9 +545,7 @@ public class LogDetailView extends JPanel {
 		commentField.setFont(FontKit.regular(14f));
 		commentField.setPreferredSize(new Dimension(200, 36));
 		commentField.setBorder(BorderFactory.createCompoundBorder(
-				BorderFactory.createLineBorder(UITheme.RGB_235_235_242),
-				new EmptyBorder(8, 10, 8, 10)
-		));
+				BorderFactory.createLineBorder(UITheme.RGB_235_235_242), new EmptyBorder(8, 10, 8, 10)));
 
 		commentSubmitBtn = new RoundedButton("등록");
 		commentSubmitBtn.setFont(FontKit.medium(13.5f));
@@ -617,22 +585,33 @@ public class LogDetailView extends JPanel {
 	}
 
 	private void refreshReactionSummary() {
-		
+
 		if (boundPost == null || !boundPost.isPublic) {
-			if (empathyMini != null) empathyMini.setText("0");
-			if (cheerMini != null) cheerMini.setText("0");
-			if (praiseMini != null) praiseMini.setText("0");
-			if (comfortMini != null) comfortMini.setText("0");
-			if (retryMini != null) retryMini.setText("0");
-			if (commentCountInline != null) commentCountInline.setText("0");
+			if (empathyMini != null)
+				empathyMini.setText("0");
+			if (cheerMini != null)
+				cheerMini.setText("0");
+			if (praiseMini != null)
+				praiseMini.setText("0");
+			if (comfortMini != null)
+				comfortMini.setText("0");
+			if (retryMini != null)
+				retryMini.setText("0");
+			if (commentCountInline != null)
+				commentCountInline.setText("0");
 			return;
 		}
 
-		empathyMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.EMPATHY)));
-		cheerMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.CHEER)));
-		praiseMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.PRAISE)));
-		comfortMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.COMFORT)));
-		retryMini.setText(String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.RETRY)));
+		empathyMini.setText(
+				String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.EMPATHY)));
+		cheerMini.setText(
+				String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.CHEER)));
+		praiseMini.setText(
+				String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.PRAISE)));
+		comfortMini.setText(
+				String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.COMFORT)));
+		retryMini.setText(
+				String.valueOf(Services.SOCIAL.getReactionCount(boundPost.id, SocialStore.ReactionType.RETRY)));
 
 		if (commentCountInline != null) {
 			commentCountInline.setText(String.valueOf(Services.SOCIAL.getCommentCount(boundPost.id)));
@@ -640,14 +619,15 @@ public class LogDetailView extends JPanel {
 	}
 
 	private void buildReactionButtons() {
-		if (reactionRow == null) return;
+		if (reactionRow == null)
+			return;
 		reactionRow.removeAll();
 
-		reactionRow.add(makeReactionButton(0xE87D, "공감해요", SocialStore.ReactionType.EMPATHY)); 
-		reactionRow.add(makeReactionButton(0xE80E, "힘내요", SocialStore.ReactionType.CHEER));     
-		reactionRow.add(makeReactionButton(0xEA23, "잘했어요", SocialStore.ReactionType.PRAISE));  
-		reactionRow.add(makeReactionButton(0xE7F2, "위로해요", SocialStore.ReactionType.COMFORT)); 
-		reactionRow.add(makeReactionButton(0xE5D5, "다시 도전!", SocialStore.ReactionType.RETRY)); 
+		reactionRow.add(makeReactionButton(0xE87D, "공감해요", SocialStore.ReactionType.EMPATHY));
+		reactionRow.add(makeReactionButton(0xE80E, "힘내요", SocialStore.ReactionType.CHEER));
+		reactionRow.add(makeReactionButton(0xEA23, "잘했어요", SocialStore.ReactionType.PRAISE));
+		reactionRow.add(makeReactionButton(0xE7F2, "위로해요", SocialStore.ReactionType.COMFORT));
+		reactionRow.add(makeReactionButton(0xE5D5, "다시 도전!", SocialStore.ReactionType.RETRY));
 
 		refreshReactionSelection();
 		refreshSocialCounts();
@@ -655,11 +635,13 @@ public class LogDetailView extends JPanel {
 	}
 
 	private void refreshReactionSelection() {
-		if (reactionRow == null) return;
+		if (reactionRow == null)
+			return;
 
 		if (boundPost == null) {
 			for (Component c : reactionRow.getComponents()) {
-				if (!(c instanceof JButton)) continue;
+				if (!(c instanceof JButton))
+					continue;
 				JButton b = (JButton) c;
 				SocialStore.ReactionType t = (SocialStore.ReactionType) b.getClientProperty("type");
 				applyGrayStyle(b, t, false);
@@ -673,7 +655,8 @@ public class LogDetailView extends JPanel {
 		SocialStore.ReactionType selected = Services.SOCIAL.getMyReaction(boundPost.id);
 
 		for (Component c : reactionRow.getComponents()) {
-			if (!(c instanceof JButton)) continue;
+			if (!(c instanceof JButton))
+				continue;
 			JButton b = (JButton) c;
 			SocialStore.ReactionType t = (SocialStore.ReactionType) b.getClientProperty("type");
 			applyGrayStyle(b, t, selected == t);
@@ -687,7 +670,8 @@ public class LogDetailView extends JPanel {
 		b.putClientProperty("type", type);
 
 		Color bg = UITheme.REACTION_BTN_BG;
-		if (selected) bg = UITheme.REACTION_BTN_BG_SELECTED;
+		if (selected)
+			bg = UITheme.REACTION_BTN_BG_SELECTED;
 
 		b.setBackground(bg);
 		b.setForeground(UITheme.DARK_TEXT);
@@ -716,7 +700,8 @@ public class LogDetailView extends JPanel {
 		b.add(text);
 
 		b.addActionListener(e -> {
-			if (boundPost == null) return;
+			if (boundPost == null)
+				return;
 
 			Services.SOCIAL.toggleReaction(boundPost.id, type);
 
@@ -729,10 +714,12 @@ public class LogDetailView extends JPanel {
 	}
 
 	private void submitComment() {
-		if (boundPost == null) return;
+		if (boundPost == null)
+			return;
 
 		String text = (commentField == null) ? "" : commentField.getText().trim();
-		if (text.isBlank()) return;
+		if (text.isBlank())
+			return;
 
 		String author = "나"; // DB(TODO): current user nickname
 		Services.SOCIAL.addComment(boundPost.id, text);
@@ -744,7 +731,8 @@ public class LogDetailView extends JPanel {
 	}
 
 	private void rebuildComments() {
-		if (commentsWrap == null) return;
+		if (commentsWrap == null)
+			return;
 		commentsWrap.removeAll();
 
 		if (boundPost == null) {
@@ -776,9 +764,7 @@ public class LogDetailView extends JPanel {
 				box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 				box.setBackground(isAuthor ? UITheme.COMMENT_AUTHOR_BG : UITheme.SURFACE_TINT);
 				box.setBorder(BorderFactory.createCompoundBorder(
-						BorderFactory.createLineBorder(UITheme.RGB_235_235_242),
-						new EmptyBorder(10, 12, 10, 12)
-				));
+						BorderFactory.createLineBorder(UITheme.RGB_235_235_242), new EmptyBorder(10, 12, 10, 12)));
 				box.setAlignmentX(LEFT_ALIGNMENT);
 
 				JPanel headRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -791,7 +777,6 @@ public class LogDetailView extends JPanel {
 				head.setAlignmentX(LEFT_ALIGNMENT);
 				headRow.add(head);
 
-				
 				if (isAuthor) {
 					Chip badge = new Chip();
 					configureDetailChip(badge);
@@ -830,7 +815,7 @@ public class LogDetailView extends JPanel {
 		commentsCountLabel.setText(String.valueOf(Services.SOCIAL.getCommentCount(boundPost.id)));
 	}
 
-	// [COLLAB] 섹션 = 제목(굵게) + 내용(들여쓰기) 규칙 통일 
+	// [COLLAB] 섹션 = 제목(굵게) + 내용(들여쓰기) 규칙 통일
 	private JPanel sectionBlock(String title, JComponent body) {
 		JPanel wrap = new JPanel();
 		wrap.setOpaque(false);
@@ -906,18 +891,17 @@ public class LogDetailView extends JPanel {
 
 	public void bind(LogPost post) {
 		this.boundPost = post;
-		if (post == null) return;
+		if (post == null)
+			return;
 
 		// () 작성자 세팅: DB 붙이면 post의 author 필드로 교체
 		postAuthor = resolvePostAuthor(post);
 
-		
 		Services.SOCIAL.addView(post.id);
 
 		DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		String visibility = post.isPublic ? "공개" : "비공개";
 
-		
 		String field = safeText(post.field);
 		String subCategory = safeText(post.subCategory);
 
@@ -928,7 +912,6 @@ public class LogDetailView extends JPanel {
 		titleLabel.setText(safeText(post.title));
 		metaLabel.setText(post.createdAt.format(fmt) + " · " + visibility);
 
-		
 		String goal = firstNonBlank(post.goalText, "");
 		String mood = firstNonBlank(post.mood, post.feeling);
 		List<String> goodPoints = (post.goodPoints == null) ? List.of() : post.goodPoints;
@@ -947,12 +930,10 @@ public class LogDetailView extends JPanel {
 		String linkUrl = firstNonBlank(post.linkUrl, post.link);
 		String linkPoint = safeText(post.linkPoint);
 
-		
 		boolean showExpectation = !goal.isBlank();
 		secExpectation.setVisible(showExpectation);
 		expectationArea.setText(goal);
 
-		
 		boolean hasGood = !(goodPoints.isEmpty() && safeText(goodOther).isBlank());
 		boolean showResult = (!mood.isBlank()) || (!pain.isBlank()) || hasGood;
 		secResult.setVisible(showResult);
@@ -981,7 +962,6 @@ public class LogDetailView extends JPanel {
 			}
 		}
 
-		
 		List<String> factorMerged = mergeListWithOther(factors, factorsOther);
 		rebuildChipWrap(factorsChipsWrap, factorMerged, ChipStyle.FACTOR);
 		boolean showFactors = factorsChipsWrap.getComponentCount() > 0;
@@ -991,7 +971,6 @@ public class LogDetailView extends JPanel {
 		processArea.setText(process.isBlank() ? DUMMY_TEXT : process);
 		secProcess.setVisible(true);
 
-		
 		boolean showPlanGap = !planGap.isBlank();
 		secPlanGap.setVisible(showPlanGap);
 		if (showPlanGap) {
@@ -1014,7 +993,8 @@ public class LogDetailView extends JPanel {
 		nextAdjustFallback.setVisible(!hasNextAdjust);
 
 		String planLine = stripEmoji(nextPlan);
-		if (planLine.isBlank()) planLine = DUMMY_PLAN;
+		if (planLine.isBlank())
+			planLine = DUMMY_PLAN;
 		nextPlanLine.setText(planLine);
 
 		if (!retryCondition.isBlank()) {
@@ -1025,7 +1005,6 @@ public class LogDetailView extends JPanel {
 			retryConditionArea.setVisible(false);
 		}
 
-		
 		String u = (linkUrl == null) ? "" : linkUrl.trim();
 		boolean showLink = !u.isBlank();
 		secLink.setVisible(showLink);
@@ -1043,12 +1022,15 @@ public class LogDetailView extends JPanel {
 			}
 		}
 
-		
-		if (socialCard != null) socialCard.setVisible(post.isPublic);
+		if (socialCard != null)
+			socialCard.setVisible(post.isPublic);
 		boolean canSocial = post.isPublic;
-		if (reactionRow != null) reactionRow.setVisible(canSocial);
-		if (commentField != null) commentField.setEnabled(canSocial);
-		if (commentSubmitBtn != null) commentSubmitBtn.setEnabled(canSocial);
+		if (reactionRow != null)
+			reactionRow.setVisible(canSocial);
+		if (commentField != null)
+			commentField.setEnabled(canSocial);
+		if (commentSubmitBtn != null)
+			commentSubmitBtn.setEnabled(canSocial);
 
 		if (post.isPublic) {
 			rebuildComments();
@@ -1060,10 +1042,8 @@ public class LogDetailView extends JPanel {
 			}
 		}
 
-		
 		updateDividers();
 
-		
 		refreshSocialCounts();
 		refreshReactionSelection();
 		refreshReactionSummary();
@@ -1084,7 +1064,6 @@ public class LogDetailView extends JPanel {
 		boolean vLink = secLink.isVisible();
 		boolean vSocial = (secSocial != null) && secSocial.isVisible();
 
-		
 		divAfterExpectation.setVisible(
 				vExpectation && (vResult || vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink));
 		divAfterResult.setVisible(vResult && (vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink));
@@ -1093,7 +1072,8 @@ public class LogDetailView extends JPanel {
 		divAfterPlanGap.setVisible(vPlanGap && (vLearning || vGrowth || vLink));
 		divAfterLearning.setVisible(vLearning && (vGrowth || vLink || vSocial));
 		divAfterGrowth.setVisible(vGrowth && (vLink || vSocial));
-		if (divAfterLink != null) divAfterLink.setVisible(vLink && vSocial);
+		if (divAfterLink != null)
+			divAfterLink.setVisible(vLink && vSocial);
 	}
 
 	private void rebuildChipWrap(JPanel wrap, List<String> values, ChipStyle style) {
@@ -1101,7 +1081,8 @@ public class LogDetailView extends JPanel {
 		if (values != null) {
 			for (String v : values) {
 				String text = safeText(v);
-				if (text.isBlank()) continue;
+				if (text.isBlank())
+					continue;
 				Chip c = new Chip();
 				configureDetailChip(c);
 				c.setFont(FontKit.medium(12.5f));
@@ -1113,45 +1094,40 @@ public class LogDetailView extends JPanel {
 		wrap.repaint();
 	}
 
-	private enum ChipStyle { META, GOOD, FACTOR }
+	private enum ChipStyle {
+		META, GOOD, FACTOR
+	}
 
 	private void applyStyledChip(Chip chip, String text, ChipStyle style) {
 		if (style == ChipStyle.GOOD) {
-			chip.setChip(text,
-					UITheme.detailChipBg(UITheme.DetailChipStyle.GOOD),
+			chip.setChip(text, UITheme.detailChipBg(UITheme.DetailChipStyle.GOOD),
 					UITheme.detailChipFg(UITheme.DetailChipStyle.GOOD));
 			return;
 		}
 		if (style == ChipStyle.FACTOR) {
-			chip.setChip(text,
-					UITheme.detailChipBg(UITheme.DetailChipStyle.FACTOR),
+			chip.setChip(text, UITheme.detailChipBg(UITheme.DetailChipStyle.FACTOR),
 					UITheme.detailChipFg(UITheme.DetailChipStyle.FACTOR));
 			return;
 		}
-		chip.setChip(text,
-				UITheme.detailChipBg(UITheme.DetailChipStyle.META),
+		chip.setChip(text, UITheme.detailChipBg(UITheme.DetailChipStyle.META),
 				UITheme.detailChipFg(UITheme.DetailChipStyle.META));
 	}
 
 	private void applyMoodChip(Chip chip, String text) {
-		chip.setChip("진행 느낌 · " + safeText(text),
-				UITheme.detailChipBg(UITheme.DetailChipStyle.INFO),
+		chip.setChip("진행 느낌 · " + safeText(text), UITheme.detailChipBg(UITheme.DetailChipStyle.INFO),
 				UITheme.detailChipFg(UITheme.DetailChipStyle.INFO));
 	}
 
 	private void applyMetaChip(Chip chip, String text) {
-		chip.setChip(safeText(text),
-				UITheme.chipBg(UITheme.ChipStyle.NEUTRAL),
+		chip.setChip(safeText(text), UITheme.chipBg(UITheme.ChipStyle.NEUTRAL),
 				UITheme.chipFg(UITheme.ChipStyle.NEUTRAL));
 	}
 
 	private void applyGreyChip(Chip chip, String text) {
-		chip.setChip(text,
-				UITheme.detailChipBg(UITheme.DetailChipStyle.NEUTRAL),
+		chip.setChip(text, UITheme.detailChipBg(UITheme.DetailChipStyle.NEUTRAL),
 				UITheme.detailChipFg(UITheme.DetailChipStyle.NEUTRAL));
 	}
 
-	
 	private void applyStatusChip(Chip chip, LogStatus status) {
 		LogStatus st = (status == null) ? LogStatus.IN_PROGRESS : status;
 		chip.setChip(st.label, UITheme.chipBg(st), UITheme.chipFg(st));
@@ -1172,27 +1148,33 @@ public class LogDetailView extends JPanel {
 		if (list != null) {
 			for (String s : list) {
 				String v = safeText(s);
-				if (!v.isBlank()) out.add(v);
+				if (!v.isBlank())
+					out.add(v);
 			}
 		}
 		String o = safeText(other);
-		if (!o.isBlank()) out.add(o);
+		if (!o.isBlank())
+			out.add(o);
 		return out;
 	}
 
 	private void scrollToTop() {
-		if (scroll == null) return;
+		if (scroll == null)
+			return;
 		SwingUtilities.invokeLater(() -> {
 			JScrollBar bar = scroll.getVerticalScrollBar();
-			if (bar != null) bar.setValue(0);
+			if (bar != null)
+				bar.setValue(0);
 		});
 	}
 
 	private void openLink(String url) {
 		String normalized = normalizeUrl(url);
-		if (normalized.isEmpty()) return;
+		if (normalized.isEmpty())
+			return;
 		try {
-			if (!Desktop.isDesktopSupported()) return;
+			if (!Desktop.isDesktopSupported())
+				return;
 			Desktop.getDesktop().browse(new URI(normalized));
 		} catch (Exception ex) {
 			JOptionPane.showMessageDialog(this, "링크를 열 수 없어요.\n" + normalized);
@@ -1200,28 +1182,31 @@ public class LogDetailView extends JPanel {
 	}
 
 	private String normalizeUrl(String url) {
-		if (url == null) return "";
+		if (url == null)
+			return "";
 		String u = url.trim();
-		if (u.isEmpty()) return "";
-		if (u.startsWith("http://") || u.startsWith("https://")) return u;
+		if (u.isEmpty())
+			return "";
+		if (u.startsWith("http://") || u.startsWith("https://"))
+			return u;
 		return "https://" + u;
 	}
 
 	private String escapeHtml(String s) {
-		if (s == null) return "";
-		return s.replace("&", "&amp;")
-				.replace("<", "&lt;")
-				.replace(">", "&gt;")
-				.replace("\"", "&quot;");
+		if (s == null)
+			return "";
+		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
 	}
 
 	private String stripHtml(String s) {
-		if (s == null) return "";
+		if (s == null)
+			return "";
 		return s.replaceAll("<[^>]*>", "").trim();
 	}
 
 	private String stripEmoji(String s) {
-		if (s == null) return "";
+		if (s == null)
+			return "";
 		return s.replaceAll("^[\\p{So}\\p{Sk}\\p{Cs}\\s]+", "").trim();
 	}
 
@@ -1231,7 +1216,8 @@ public class LogDetailView extends JPanel {
 
 	private String firstNonBlank(String a, String b) {
 		String x = safeText(a);
-		if (!x.isBlank()) return x;
+		if (!x.isBlank())
+			return x;
 		return safeText(b);
 	}
 
@@ -1251,7 +1237,8 @@ public class LogDetailView extends JPanel {
 
 	// () LogPost에서 작성자 필드가 있으면 잡아오기 (DB 붙으면 교체)
 	private String resolvePostAuthor(LogPost post) {
-		if (post == null) return "나";
+		if (post == null)
+			return "나";
 		String[] candidates = { "authorNick", "authorId", "userNick", "nick", "author" };
 		for (String f : candidates) {
 			try {
@@ -1260,9 +1247,11 @@ public class LogDetailView extends JPanel {
 				Object v = field.get(post);
 				if (v != null) {
 					String s = v.toString().trim();
-					if (!s.isBlank()) return s;
+					if (!s.isBlank())
+						return s;
 				}
-			} catch (Exception ignored) { }
+			} catch (Exception ignored) {
+			}
 		}
 		return "나";
 	}

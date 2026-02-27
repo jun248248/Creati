@@ -9,6 +9,13 @@ public class PublicLogListDto {
     private String userId;
     private String resultStatus;
     private LocalDateTime createdAt;
+    private String fieldName;
+	public String getFieldName() {
+		return fieldName;
+	}
+	public void setFieldName(String fieldName) {
+		this.fieldName = fieldName;
+	}
 	public Long getId() {
 		return id;
 	}
