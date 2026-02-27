@@ -27,9 +27,14 @@ public class MainHomeView extends JPanel {
 	private static final Color YELLOW_DARK = UITheme.YELLOW_500;
 	private static final Color YELLOW_MID = UITheme.YELLOW_300;
 	private static final Color YELLOW_SOFT = UITheme.YELLOW_200;
+	
+	private javax.swing.JLabel kpiMonthLogValue;
+	private javax.swing.JLabel kpiMonthCategoryValue;
+	private javax.swing.JLabel kpiTopFieldValue;
 
 	private final Supplier<String> insightGetter;
 	private final java.util.function.Consumer<String> insightSetter;
+	private final com.creati.dao.LogDao logDao = new com.creati.dao.LogDao();
 
 	public MainHomeView(Supplier<String> insightGetter, java.util.function.Consumer<String> insightSetter) {
 		this.insightGetter = insightGetter;
@@ -43,6 +48,13 @@ public class MainHomeView extends JPanel {
 		setBorder(new EmptyBorder(0, 18, 18, 18));
 
 		add(buildHomeView(), BorderLayout.CENTER);
+		
+		addHierarchyListener(e -> {
+		    if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && isShowing()) {
+		        refreshHomeKpis();
+		    }
+		});
+		
 	}
 
 	private JComponent buildHomeView() {
@@ -58,10 +70,10 @@ public class MainHomeView extends JPanel {
 
 		JPanel kpiRow = new JPanel(new GridLayout(1, 3, 14, 0));
 		kpiRow.setOpaque(false);
-		kpiRow.add(kpiCard("이번 달 시도 로그", "12", "꾸준히 쌓는 중", YELLOW_DARK));
-		kpiRow.add(kpiCard("이번 달 폴더", "4", "도전이 정리되고 있어요", YELLOW_MID));
-		kpiRow.add(kpiCard("대표 분야", "영상", "가장 많이 기록됨", YELLOW_SOFT));
-
+		kpiRow.add(kpiCard("이번 달 시도 로그", "0", "꾸준히 쌓는 중", YELLOW_DARK, l -> kpiMonthLogValue = l));
+	    kpiRow.add(kpiCard("이번 달 카테고리", "0", "도전이 정리되고 있어요", YELLOW_MID, l -> kpiMonthCategoryValue = l));
+	    kpiRow.add(kpiCard("대표 분야", "기타", "가장 많이 기록됨", YELLOW_SOFT, l -> kpiTopFieldValue = l));
+		
 		board.add(kpiRow, g);
 
 		g.gridy++;
@@ -78,6 +90,67 @@ public class MainHomeView extends JPanel {
 		board.add(body, g);
 
 		return board;
+	}
+	
+	private JComponent kpiCard(String title, String value, String sub, Color accent,
+            java.util.function.Consumer<JLabel> valueLabelOut) {
+		JPanel card = new JPanel(new BorderLayout());
+		card.setBackground(UITheme.WHITE);
+		card.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true),
+				new EmptyBorder(14, 14, 14, 14)));
+
+		JPanel top = new JPanel(new BorderLayout());
+		top.setOpaque(false);
+
+		JLabel t = new JLabel(title);
+		t.setFont(UITheme.CAPTION);
+		t.setForeground(UITheme.RGB_120_120_120);
+
+		JPanel dot = new JPanel();
+		dot.setPreferredSize(new Dimension(10, 10));
+		dot.setBackground(accent);
+		dot.setOpaque(true);
+
+		top.add(t, BorderLayout.WEST);
+		top.add(dot, BorderLayout.EAST);
+
+		JLabel v = new JLabel(value);
+		v.setFont(UITheme.H2 != null ? UITheme.H2.deriveFont(22f) : UITheme.H2);
+		v.setForeground(UITheme.TEXT);
+		
+		if (valueLabelOut != null) valueLabelOut.accept(v);
+
+		JLabel s = new JLabel(sub);
+		s.setFont(UITheme.CAPTION);
+		s.setForeground(UITheme.RGB_140_140_140);
+
+		JPanel center = new JPanel();
+		center.setOpaque(false);
+		center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+		center.add(Box.createVerticalStrut(6));
+		center.add(v);
+		center.add(Box.createVerticalStrut(6));
+		center.add(s);
+
+		card.add(top, BorderLayout.NORTH);
+		card.add(center, BorderLayout.CENTER);
+		return card;
+	}
+	
+	private void refreshHomeKpis() {
+	    com.creati.model.User u = AppState.get().getCurrentUser();
+	    if (u == null || u.getId() == null || u.getId().isBlank()) return;
+
+	    String userId = u.getId();
+
+	    int logCnt = logDao.countMyLogsThisMonth(userId);                 // 공개/비공개 포함, 임시저장 제외
+	    int catCnt = logDao.countMyDistinctCategoriesThisMonth(userId);   // 공개/비공개 포함, 임시저장 제외
+	    String topField = logDao.findMyTopFieldThisMonth(userId);         // 공개/비공개 포함, 임시저장 제외
+
+	    if (kpiMonthLogValue != null) kpiMonthLogValue.setText(String.valueOf(logCnt));
+	    if (kpiMonthCategoryValue != null) kpiMonthCategoryValue.setText(String.valueOf(catCnt));
+	    if (kpiTopFieldValue != null) kpiTopFieldValue.setText(topField);
 	}
 
 	private JComponent kpiCard(String title, String value, String sub, Color accent) {
@@ -104,7 +177,7 @@ public class MainHomeView extends JPanel {
 		JLabel v = new JLabel(value);
 		v.setFont(UITheme.H2 != null ? UITheme.H2.deriveFont(22f) : UITheme.H2);
 		v.setForeground(UITheme.TEXT);
-
+		
 		JLabel s = new JLabel(sub);
 		s.setFont(UITheme.CAPTION);
 		s.setForeground(UITheme.RGB_140_140_140);
