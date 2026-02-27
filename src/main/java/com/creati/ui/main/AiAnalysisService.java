@@ -82,7 +82,7 @@ public class AiAnalysisService {
         if (log == null) return "로그를 찾을 수 없습니다.";
 
         String prompt = String.format(
-            "너는 크리에이터 컨설턴트 에티야. 제목: [%s], 내용: [%s]. [%s] 관점에서 분석해줘.",
+            "너는 크리에이터 컨설턴트 에티야. 제목: [%s], 내용: [%s]. [%s] 관점에서 분석해줘." + "답변이 도중에 끊기지 않도록 문장을 완결해줘.",
             log.title, log.whatIDid, type.label
         );
         return gptService.analyzeWithPrompt(prompt);

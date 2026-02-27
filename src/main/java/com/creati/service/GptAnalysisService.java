@@ -26,8 +26,18 @@ public class GptAnalysisService {
     public String analyzeWithPrompt(String prompt) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
         
+        // 1. 프롬프트 내 특수기호가 JSON 구조를 깨뜨리지 않게 정제
+        String safePrompt = prompt.replace("\"", "\\\"").replace("\n", "\\n");
+        
         // JSON Body 구성
-        String jsonBody = "{\"contents\": [{\"parts\":[{\"text\": \"" + prompt + "\"}]}]}";
+        String jsonBody = "{"
+        	    + "\"contents\": [{\"parts\":[{\"text\": \"" + prompt + "\"}]}],"
+        	    + "\"generationConfig\": {"
+        	    + "    \"maxOutputTokens\": 2048," // 답변 길이를 2048 토큰으로 넉넉히 설정
+        	    + "    \"temperature\": 0.7,"      // 창의성 조절 (0.7~0.8 권장)
+        	    + "    \"topP\": 0.95"
+        	    + "}"
+        	    + "}";
         
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
