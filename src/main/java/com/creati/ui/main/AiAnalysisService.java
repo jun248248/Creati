@@ -1,123 +1,98 @@
 package com.creati.ui.main;
 
 import com.creati.model.LogPost;
+import com.creati.service.GptAnalysisService;
+import com.creati.dao.AiAnalysisDao; // Dao 임포트 확인
 
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
-
-// API(TODO): Replace stub analysis with real API call.
-// DB(TODO): Replace in-memory store with repository.
 
 public class AiAnalysisService {
 
-    private final AiAnalysisStore store;
-
-    public AiAnalysisService(AiAnalysisStore store) {
-        this.store = Objects.requireNonNull(store);
+    // [수정] 메모리 Store 대신 실제 DB Dao를 사용합니다.
+    private final AiAnalysisDao aiDao = new AiAnalysisDao();
+    private final GptAnalysisService gptService = new GptAnalysisService();
+    
+    // [수정] 인자 없는 기본 생성자로 변경하여 Services.java와의 호환성을 맞춥니다.
+    public AiAnalysisService() {
     }
 
-    
+    /**
+     * 특정 로그가 완전히 분석되었는지 확인 (DB 조회)
+     */
     public boolean isAnalyzed(String logId) {
-        return store.isAnalyzed(logId);
+        if (logId == null) return false;
+        // DB에서 해당 로그의 분석 레코드가 3개 이상이면 완료로 간주
+        return aiDao.findByLogId(logId).size() >= 3;
     }
 
-    
+    /**
+     * 특정 유형의 분석이 이미 DB에 존재하는지 확인
+     */
     public boolean isTypeAnalyzed(String logId, AiAnalysisRecord.Type type) {
-        return store.hasType(logId, type);
+        if (logId == null || type == null) return false;
+        return aiDao.findByLogId(logId).stream()
+                    .anyMatch(r -> r.type == type);
     }
 
+    /**
+     * DB에서 특정 로그의 분석 기록 리스트를 가져옵니다.
+     */
     public List<AiAnalysisRecord> listRecords(String logId) {
         if (logId == null || logId.isBlank()) return List.of();
-        return store.listByLogId(logId);
+        return aiDao.findByLogId(logId);
     }
 
     public LogPost findMostRecentLog() {
-        List<LogPost> all = Services.LOGS.list();
-        if (all == null || all.isEmpty()) return null;
-        return all.stream()
-                .filter(p -> p != null && LogPost.TYPE_LOG.equals(p.type))
-                .max(Comparator
-                        .comparing((LogPost p) -> p.createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(p -> p.id == null ? "" : p.id))
-                .orElse(null);
+        return Services.LOGS.list().stream()
+            .filter(p -> p != null && "LOG".equals(p.type))
+            .max(Comparator.comparing(p -> p.createdAt))
+            .orElse(null);
     }
 
-    // API(TODO): Preview analysis result (does NOT save). TODO(AI API): 여기서 실제 AI API 호출 결과로 content를 채우도록 교체 
-    public AiAnalysisRecord preview(String logId, AiAnalysisRecord.Type type) {
-        if (logId == null || logId.isBlank()) throw new IllegalArgumentException("logId is required");
-        if (type == null) throw new IllegalArgumentException("type is required");
-
-        LogPost log = Services.LOGS.getById(logId);
-        String logTitle = (log == null || log.title == null || log.title.isBlank()) ? "(제목 없음)" : log.title;
-
-        String content = buildStubContent(type, log);
-
-        return new AiAnalysisRecord(
-                "air_preview_" + UUID.randomUUID(),
-                logId,
-                type,
-                logTitle + " · " + type.label,
-                LocalDate.now(),
-                content
-        );
-    }
-
-    
+    /**
+     * 분석 결과를 실제 DB에 저장합니다.
+     */
     public AiAnalysisRecord save(String logId, AiAnalysisRecord.Type type, String content) {
-        if (logId == null || logId.isBlank()) throw new IllegalArgumentException("logId is required");
-        if (type == null) throw new IllegalArgumentException("type is required");
-
-        if (store.hasType(logId, type)) {
-            throw new IllegalStateException("ALREADY_ANALYZED_TYPE");
+        try {
+            // [중요] DB의 BIGINT 타입에 맞게 숫자만 추출하여 변환
+            long l_id = Long.parseLong(logId.replaceAll("[^0-9]", ""));
+            
+            // Dao를 호출하여 실제 INSERT 실행
+            aiDao.insertAnalysis(l_id, type.name(), "에티의 " + type.label, content);
+            
+        } catch (Exception e) {
+            System.err.println("DB 저장 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
         }
 
-        LogPost log = Services.LOGS.getById(logId);
-        String logTitle = (log == null || log.title == null || log.title.isBlank()) ? "(제목 없음)" : log.title;
-
-        AiAnalysisRecord r = new AiAnalysisRecord(
-                "air_" + UUID.randomUUID(),
-                logId,
-                type,
-                logTitle + " · " + type.label,
-                LocalDate.now(),
-                (content == null ? "" : content)
+        // UI 갱신을 위해 객체 반환
+        return new AiAnalysisRecord(
+            UUID.randomUUID().toString(), logId, type, "에티의 " + type.label, LocalDate.now(), content
         );
-        store.add(r);
-        return r;
     }
 
-    
-    public AiAnalysisRecord analyze(String logId, AiAnalysisRecord.Type type) {
-        AiAnalysisRecord preview = preview(logId, type);
-        return save(logId, type, preview.content);
+    /**
+     * 실제 GPT API를 호출하여 분석 결과를 받아옵니다.
+     */
+    public String requestAiAnalysis(String logId, AiAnalysisRecord.Type type) throws Exception {
+        LogPost log = Services.LOGS.getById(logId);
+        if (log == null) return "로그를 찾을 수 없습니다.";
+
+        String prompt = String.format(
+            "너는 크리에이터 컨설턴트 에티야. 제목: [%s], 내용: [%s]. [%s] 관점에서 분석해줘." + "답변이 도중에 끊기지 않도록 문장을 완결해줘.",
+            log.title, log.whatIDid, type.label
+        );
+        return gptService.analyzeWithPrompt(prompt);
     }
 
-    
-    
-    
-
-    private String buildStubContent(AiAnalysisRecord.Type type, LogPost log) {
-        String title = (log == null || log.title == null || log.title.isBlank()) ? "(제목 없음)" : log.title;
-
-        return switch (type) {
-            case CAUSE -> "[원인 분석 · 임시 결과]\n"
-                    + "- 핵심 원인: (예) 목표/기준이 명확하지 않아 시도가 흔들렸을 수 있어요.\n"
-                    + "- 증거: (예) 중간에 기준이 바뀌거나 시간 배분이 일정하지 않았어요.\n"
-                    + "- 다음 한 줄: “오늘은 컷 편집 20분만”처럼 범위를 더 줄여볼까요?\n"
-                    + "\n(분석 대상: " + title + ")";
-            case RETRO -> "[회고 정리 · 임시 결과]\n"
-                    + "- 잘한 점: (예) 꾸준히 시도했고 기록이 남아 있어요.\n"
-                    + "- 아쉬운 점: (예) 범위를 줄이지 못해 피로가 누적됐을 수 있어요.\n"
-                    + "- 다음 행동: (예) 다음엔 ‘결론 1줄’을 먼저 쓰고 본문을 채워보세요.\n"
-                    + "\n(분석 대상: " + title + ")";
-            case RETRY -> "[재도전 방향 · 임시 결과]\n"
-                    + "- 다음 목표: (예) 7일 동안 하루 10분 루틴으로 축소해요.\n"
-                    + "- 체크 포인트: (예) 3일째에 한 번만 개선하고 나머지는 유지!\n"
-                    + "- 실패 대비: (예) 못 한 날은 ‘0분’ 대신 ‘1분’로라도 연결하기.\n"
-                    + "\n(분석 대상: " + title + ")";
-        };
+    // 기존 미리보기 로직 (필요 시 유지)
+    public AiAnalysisRecord preview(String logId, AiAnalysisRecord.Type type) {
+        return new AiAnalysisRecord(
+                "preview_" + UUID.randomUUID(),
+                logId, type, "미리보기", LocalDate.now(), "분석 중..."
+        );
     }
 }

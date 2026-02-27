@@ -3,13 +3,10 @@ package com.creati.ui.auth;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
-import com.creati.service.AuthService;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
 import java.awt.*;
-import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Set;
 
 public class SignupFrame extends JFrame {
@@ -346,85 +343,14 @@ public class SignupFrame extends JFrame {
 	}
 
 	private void onSignup() {
+	// DB validate
+	// DB signup
+	JOptionPane.showMessageDialog(this, "회원가입 기능은 DB 연동 후 동작합니다.");
+	dispose();
+	if (loginFrame != null)
+		loginFrame.setVisible(true);
+}
 
-	    String id = idField.getText().trim();
-	    String pw = new String(pwField.getPassword()).trim();
-	    String pw2 = new String(pw2Field.getPassword()).trim();
-	    String nickname = nickField.getText().trim();
-	    String phone = phoneField.getText().trim();
-
-	    // 🔥 기본 유효성 검사
-	    if (id.isEmpty() || pw.isEmpty() || nickname.isEmpty()) {
-	        toast("필수 항목을 입력해주세요.");
-	        return;
-	    }
-
-	    if (!pw.equals(pw2)) {
-	        toast("비밀번호가 일치하지 않습니다.");
-	        return;
-	    }
-
-	    // 🔥 생년월일 조합
-	    LocalDate birth = null;
-	    if (birthYearCombo.getSelectedItem() != null) {
-	        int y = Integer.parseInt((String) birthYearCombo.getSelectedItem());
-	        int m = Integer.parseInt((String) birthMonthCombo.getSelectedItem());
-	        int d = Integer.parseInt((String) birthDayCombo.getSelectedItem());
-	        birth = LocalDate.of(y, m, d);
-	    }
-
-	    // 🔥 이메일 조합
-	    String emailLocal = emailLocalField.getText().trim();
-	    String emailDomain = emailDomainField.getText().trim();
-	    String email = null;
-	    if (!emailLocal.isEmpty() && !emailDomain.isEmpty()) {
-	        email = emailLocal + "@" + emailDomain;
-	    }
-
-	    // 🔥 플랫폼
-	    String platform = (String) platformCombo.getSelectedItem();
-	    if ("선택".equals(platform)) {
-	        platform = null;
-	    }
-
-	    // 🔥 관심분야 (문자열 → ID 변환 필요)
-	    java.util.Set<String> tags = tagInput.getTags();
-	    java.util.List<Long> interestIds = convertTagsToIds(new java.util.ArrayList<>(tags));
-
-	    // 🔥 AuthService 호출
-	    AuthService auth = AuthService.getInstance();
-
-	    boolean result = auth.signup(
-	            id, pw, nickname,
-	            phone, email, birth,
-	            platform, interestIds
-	    );
-
-	    if (result) {
-	        JOptionPane.showMessageDialog(this, "회원가입 성공!");
-	        dispose();
-	        if (loginFrame != null)
-	            loginFrame.setVisible(true);
-	    } else {
-	        toast("회원가입 실패 (중복 아이디 또는 DB 오류)");
-	    }
-	}
-
-	private java.util.List<Long> convertTagsToIds(java.util.List<String> tags) {
-
-	    java.util.List<Long> ids = new ArrayList<>();
-
-	    for (String tag : tags) {
-	        switch (tag) {
-	            case "영상": ids.add(1L); break;
-	            case "이미지": ids.add(2L); break;
-	            case "글": ids.add(3L); break;
-	            case "음악": ids.add(4L); break;
-	        }
-	    }
-
-	    return ids;
-	}
 	
 	
 	

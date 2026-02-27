@@ -9,7 +9,6 @@ public class MyLogListDto {
     private String title;
     private LocalDateTime createdAt;
     private String categoryName;
-    private boolean isPublic;
     
 	public Long getId() {
 		return id;
@@ -40,11 +39,5 @@ public class MyLogListDto {
 	}
 	public void setCategoryName(String categoryName) {
 		this.categoryName = categoryName;
-	}
-	public boolean isPublic() {
-		return isPublic;
-	}
-	public void setPublic(boolean isPublic) {
-		this.isPublic = isPublic;
 	}
 }

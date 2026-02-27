@@ -31,7 +31,7 @@ public class QuestionWriteController {
             throw new ValidationException(ValidationException.Field.CONTENT, "질문 내용을 입력해 주세요.");
         }
 
-        String id = "qna_" + System.currentTimeMillis(); // DB(TODO): PK
+        String id = String.valueOf(System.currentTimeMillis()); //DB
         String field = safe(req.field);
         if (field.isBlank()) field = "기타";
 

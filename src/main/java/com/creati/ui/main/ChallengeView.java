@@ -8,8 +8,6 @@ import com.creati.ui.components.Chip;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
-
-
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -46,14 +44,9 @@ public class ChallengeView extends JPanel {
     // DB: Store(LogStore)에서 로드한 LogPost를 리스트 렌더링용(LogItem)으로 변환해 담음
     private final List<LogItem> allLogs = new ArrayList<>();
 
-    private com.creati.dto.UserDto currentUser;
-    private com.creati.dao.LogDao logDao;
-    private List<com.creati.dto.CategoryDto> myCategoryList = new ArrayList<>();
+    private final List<String> categories = List.of("전체", "영상", "이미지", "글", "음악", "기타");
 
-    public ChallengeView(com.creati.dto.UserDto user) {
-    	this.currentUser = user;
-        this.logDao = new com.creati.dao.LogDao();
-        
+    public ChallengeView() {
         UITheme.ensureInit();
         FontKit.init();
 
@@ -74,17 +67,7 @@ public class ChallengeView extends JPanel {
     }
 
     public void clearSearch() {
-    	loadCategories();
         setQuery("");
-    }
-    
-    public void refresh() {
-        loadCategories();
-        selectedCategory = null; // 전체로 초기화
-        if (catList.getModel().getSize() > 0) {
-            catList.setSelectedIndex(0); // "전체" 선택
-        }
-        applyFilter(); // 내부에서 reloadFromStore()로 DB 재조회 + 화면 갱신
     }
 
     private JComponent buildHeader() {
@@ -231,15 +214,7 @@ public class ChallengeView extends JPanel {
 
     private void loadCategories() {
         catModel.clear();
-        catModel.addElement("전체"); // 기본 메뉴 추가
-
-        // DB에서 '이 유저'가 글을 쓴 적 있는 카테고리만 가져오기
-        if (currentUser != null && currentUser.getId() != null) {
-            myCategoryList = logDao.findUsedCategoriesByUserId(currentUser.getId());
-            for (com.creati.dto.CategoryDto cat : myCategoryList) {
-                catModel.addElement(cat.getName());
-            }
-        }
+        for (String c : categories) catModel.addElement(c);
     }
 
     private static Icon makeMaterialIconForCategory(String category) {
@@ -289,15 +264,7 @@ public class ChallengeView extends JPanel {
 
                 // DB: id로 실제 LogPost를 조회해서 상세 화면으로 전달
                 LogPost postToOpen = Services.LOGS.getById(item.id);
-                if (postToOpen == null) {
-                    JOptionPane.showMessageDialog(
-                        ChallengeView.this,
-                        "DB에서 상세를 찾지 못했어요.\n(id=" + item.id + ")",
-                        "상세 조회 실패",
-                        JOptionPane.WARNING_MESSAGE
-                    );
-                    return;
-                }
+                if (postToOpen == null) postToOpen = toPost(item); 
 
                 Window w = SwingUtilities.getWindowAncestor(ChallengeView.this);
                 if (w instanceof MainFrame) {
@@ -324,36 +291,17 @@ public class ChallengeView extends JPanel {
     }
 
     private void applyFilter() {
-        reloadFromStore(); 
+        reloadFromStore(); // DB: store 기준으로 allLogs 갱신
         logModel.clear();
 
         List<LogItem> filtered = new ArrayList<>();
-        
-        // 디버깅: allLogs에 진짜 데이터가 들어있는지 확인
-        System.out.println(">>> [필터 시작] 현재 메모리상의 총 로그 수: " + allLogs.size());
-
         for (LogItem item : allLogs) {
-            // 1. 카테고리 비교 (trim()을 추가하여 공백 제거 비교)
-            boolean okCat = (selectedCategory == null) || 
-                            "전체".equals(selectedCategory) || 
-                            Objects.equals(item.category, selectedCategory);
-            
-            // 2. 검색어 비교 (공백 제거 및 대소문자 무시)
-            String trimmedQuery = query.trim().toLowerCase();
-            boolean okQuery = trimmedQuery.isEmpty() || 
-                             (item.title != null && item.title.toLowerCase().contains(trimmedQuery));
-            
-            if (okCat && okQuery) {
-                filtered.add(item);
-            } else {
-                System.out.println(">>> [필터 탈락] 제목: " + item.title + " | 사유: " + 
-                                   (!okCat ? "카테고리 불일치" : "검색어 불일치"));
-            }
+            boolean okCat = (selectedCategory == null) || Objects.equals(item.category, selectedCategory);
+            boolean okQuery = query.isEmpty() || (item.title != null && item.title.contains(query));
+            if (okCat && okQuery) filtered.add(item);
         }
 
-        for (LogItem item : filtered) {
-            logModel.addElement(item);
-        }
+        for (LogItem item : filtered) logModel.addElement(item);
 
         rightTitle.setText(selectedCategory == null ? "전체" : selectedCategory);
         rightCount.setText(filtered.size() + "개");
@@ -365,43 +313,37 @@ public class ChallengeView extends JPanel {
     private void reloadFromStore() {
         allLogs.clear();
 
-        // 1. 선택된 카테고리의 ID 찾기
-        Long selectedCatId = null;
-        if (selectedCategory != null && !selectedCategory.equals("전체")) {
-            for (com.creati.dto.CategoryDto cat : myCategoryList) {
-                if (cat.getName().equals(selectedCategory)) {
-                    selectedCatId = cat.getId();
-                    break;
-                }
-            }
+        for (LogPost p : Services.LOGS.list()) {
+            if (!LogPost.TYPE_LOG.equals(p.type)) continue;
+
+            allLogs.add(new LogItem(
+                p.id,
+                p.field,
+                p.subCategory,
+                p.status,
+                p.title,
+                p.createdAt,
+                p.isPublic,
+                "", "", "", "", "", ""
+            ));
         }
 
-        // 2. DB에서 유저의 글 목록 가져오기
-        if (currentUser != null) {
-            List<com.creati.dto.MyLogListDto> dbLogs = logDao.findMyLogList(currentUser.getId(), selectedCatId);
-
-            System.out.println("디버깅: DB에서 가져온 로그 개수 = " + (dbLogs != null ? dbLogs.size() : "null"));
-            // 3. 화면에 띄울 수 있게 LogItem으로 변환
-            for (com.creati.dto.MyLogListDto dto : dbLogs) {
-                // DB의 결과 상태(SUCCESS, FAIL)를 화면용 상태(LogStatus)로 변환
-            	LogStatus status = LogStatus.IN_PROGRESS;
-            	if ("SUCCESS".equals(dto.getResultStatus())) {
-            	    status = LogStatus.DONE; // 성공이면 '완료' 상태로
-            	} else if ("FAIL".equals(dto.getResultStatus())) {
-            	    status = LogStatus.NEEDS_IMPROVEMENT; // 실패면 '보완 필요' 상태로
-            	}
-
-                allLogs.add(new LogItem(
-                    String.valueOf(dto.getId()), 
-                    dto.getCategoryName(), 
-                    "", // 서브 카테고리 (없음)
-                    status, 
-                    dto.getTitle(), 
-                    dto.getCreatedAt() != null ? dto.getCreatedAt().toLocalDate() : LocalDate.now(), 
-                    dto.isPublic(),
-                    "", "", "", "", "", "" // 나머지 내용들은 목록에서 안 쓰이므로 빈칸
-                ));
-            }
+        if (allLogs.isEmpty()) {
+            allLogs.add(new LogItem(
+                    "1",
+                    "영상",
+                    "콘텐츠 제작 / 크리에이터 활동",
+                    LogStatus.IN_PROGRESS,
+                    "유튜브 쇼츠 실패 분석",
+                    LocalDate.now(),
+                    false,
+                    "(더미) 오늘 한 일을 정리해보자",
+                    "(더미) 괜찮아요",
+                    "(더미) 어려웠던 점",
+                    "(더미) 배운 점",
+                    "(더미) 다음엔 이렇게",
+                    "(더미) 링크"
+            ));
         }
     }
 
@@ -600,7 +542,7 @@ public class ChallengeView extends JPanel {
             date.setText(item.createdAt != null ? item.createdAt.format(df) : "");
 
             boolean isPrivate = !item.isPublic;
-            lock.setVisible(isPrivate);	
+            lock.setVisible(isPrivate);
             if (isPrivate) {
                 lock.setText(new String(Character.toChars(0xE897))); 
             }
