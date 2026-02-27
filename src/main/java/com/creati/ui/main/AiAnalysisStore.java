@@ -1,7 +1,7 @@
 package com.creati.ui.main;
 
 import java.util.*;
-// 제거 요망 클래스(임시 저장소)
+
 // DB(TODO): Replace in-memory store with repository.
 
 public class AiAnalysisStore {
