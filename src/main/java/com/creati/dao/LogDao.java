@@ -920,4 +920,116 @@ public class LogDao {
             pool.freeConnection(conn, ps);
         }
     }
+    
+    public int countMyLogsThisMonth(String userId) {
+        String sql = """
+            SELECT COUNT(*) AS cnt
+            FROM log
+            WHERE u_id = ?
+              AND l_is_draft = 0
+              AND created_at >= ?
+              AND created_at < ?
+            """;
+
+        java.sql.Connection conn = null;
+        java.sql.PreparedStatement ps = null;
+        java.sql.ResultSet rs = null;
+
+        try {
+            java.time.LocalDate first = java.time.LocalDate.now().withDayOfMonth(1);
+            java.time.LocalDate next = first.plusMonths(1);
+
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(first.atStartOfDay()));
+            ps.setTimestamp(3, java.sql.Timestamp.valueOf(next.atStartOfDay()));
+
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("cnt");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0;
+    }
+
+    public int countMyDistinctCategoriesThisMonth(String userId) {
+        String sql = """
+            SELECT COUNT(DISTINCT c_id) AS cnt
+            FROM log
+            WHERE u_id = ?
+              AND l_is_draft = 0
+              AND c_id IS NOT NULL
+              AND created_at >= ?
+              AND created_at < ?
+            """;
+
+        java.sql.Connection conn = null;
+        java.sql.PreparedStatement ps = null;
+        java.sql.ResultSet rs = null;
+
+        try {
+            java.time.LocalDate first = java.time.LocalDate.now().withDayOfMonth(1);
+            java.time.LocalDate next = first.plusMonths(1);
+
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(first.atStartOfDay()));
+            ps.setTimestamp(3, java.sql.Timestamp.valueOf(next.atStartOfDay()));
+
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("cnt");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0;
+    }
+
+    public String findMyTopFieldThisMonth(String userId) {
+        // 대표 분야 = 이번 달 로그에서 i_id(interest)가 가장 많이 나온 i_name
+        // 공개/비공개 상관없이 포함, 임시저장 제외
+        String sql = """
+            SELECT i.i_name, COUNT(*) AS cnt
+            FROM log l
+            LEFT JOIN interest i ON l.i_id = i.i_id
+            WHERE l.u_id = ?
+              AND l.l_is_draft = 0
+              AND l.created_at >= ?
+              AND l.created_at < ?
+            GROUP BY l.i_id, i.i_name
+            ORDER BY cnt DESC
+            LIMIT 1
+            """;
+
+        java.sql.Connection conn = null;
+        java.sql.PreparedStatement ps = null;
+        java.sql.ResultSet rs = null;
+
+        try {
+            java.time.LocalDate first = java.time.LocalDate.now().withDayOfMonth(1);
+            java.time.LocalDate next = first.plusMonths(1);
+
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(first.atStartOfDay()));
+            ps.setTimestamp(3, java.sql.Timestamp.valueOf(next.atStartOfDay()));
+
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                String name = rs.getString("i_name");
+                return (name == null || name.isBlank()) ? "기타" : name;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return "기타";
+    }
 }
