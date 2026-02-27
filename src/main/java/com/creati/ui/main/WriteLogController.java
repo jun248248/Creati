@@ -61,11 +61,41 @@ public class WriteLogController {
         }
         
         LogDto dto = toLogDto(d, userId);
+        if (dto == null) return;
         
         long newId = logDao.insertLog(dto);
         if (newId <= 0) {
             JOptionPane.showMessageDialog(view, "저장 실패!");
             return;
+        }
+        
+        try {
+            // 4번째 사진: 다음 조정 포인트 -> log_adjustment_point
+            java.util.List<String> adjust = new java.util.ArrayList<>();
+            if (d.nextAdjustPoints != null) adjust.addAll(d.nextAdjustPoints);
+            if (d.nextAdjustOther != null && !d.nextAdjustOther.trim().isEmpty()) adjust.add(d.nextAdjustOther.trim());
+            logDao.insertAdjustmentPoints(newId, adjust);
+
+            // 결과 인식에 따라:
+            // 만족/괜찮 -> 2번째(잘된 부분) -> log_good_point
+            // 조금/많이 아쉽 -> 3번째(영향 요인) -> log_influence_factor
+            if (isPositiveReaction(d.mood)) {
+                java.util.List<String> good = new java.util.ArrayList<>();
+                if (d.goodPoints != null) good.addAll(d.goodPoints);
+                if (d.goodOther != null && !d.goodOther.trim().isEmpty()) good.add(d.goodOther.trim());
+                logDao.insertGoodPoints(newId, good);
+            } else {
+                java.util.List<String> factors = new java.util.ArrayList<>();
+                if (d.influenceFactors != null) factors.addAll(d.influenceFactors);
+                if (d.influenceOther != null && !d.influenceOther.trim().isEmpty()) factors.add(d.influenceOther.trim());
+                logDao.insertInfluenceFactors(newId, factors);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(view, "부가 항목 저장 실패: " + e.getMessage());
+            // 정책: 여기서 return 할지 / 그냥 진행할지 선택
+            // return;
         }
         
         d.id = String.valueOf(newId);
@@ -154,6 +184,14 @@ public class WriteLogController {
         dto.setRetryCondition(d.retryCondition);// retry_condition
 
         return dto;
+    }
+    
+    private boolean isPositiveReaction(String mood) {
+        if (mood == null) return false;
+        return switch (mood.trim()) {
+            case "만족해요", "괜찮아요" -> true;
+            default -> false; // 조금 아쉬워요, 많이 아쉬워요
+        };
     }
     
     private String mapMoodToRating(String moodKorean) {

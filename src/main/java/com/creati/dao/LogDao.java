@@ -3,8 +3,10 @@ package com.creati.dao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +15,9 @@ import com.creati.dto.CategoryDto;
 import com.creati.dto.LogDto;
 import com.creati.dto.MyLogListDto;
 import com.creati.dto.PublicLogListDto;
+import com.creati.model.LogPost;
+import com.creati.model.LogStatus;
+
 
 public class LogDao {
 
@@ -38,7 +43,8 @@ public class LogDao {
 	                l.l_result_status,
 	                l.l_title,
 	                l.created_at,
-	                i.i_name
+	                i.i_name,
+	                l.l_is_public
 	            FROM log l
 	            LEFT JOIN interest i ON l.i_id = i.i_id
 	            WHERE l.u_id = ?
@@ -68,6 +74,7 @@ public class LogDao {
 	            dto.setResultStatus(rs.getString("l_result_status"));
 	            dto.setTitle(rs.getString("l_title"));
 	            dto.setCategoryName(rs.getString("i_name") != null ? rs.getString("i_name") : "미지정");
+	            dto.setPublic(rs.getBoolean("l_is_public"));
 
 	            if (rs.getTimestamp("created_at") != null) {
 	                dto.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
@@ -94,17 +101,19 @@ public class LogDao {
 	    List<PublicLogListDto> list = new ArrayList<>();
 
 	    String sql = """
-	            SELECT 
-	                l_id,
-	                l_title,
-	                u_id,
-	                l_result_status,
-	                created_at
-	            FROM log
-	            WHERE l_is_public = 1
-	              AND l_is_draft = 0
-	            ORDER BY created_at DESC
-	            """;
+	    	    SELECT
+	    	        l.l_id,
+	    	        l.l_title,
+	    	        l.u_id,
+	    	        l.l_result_status,
+	    	        l.created_at,
+	    	        i.i_name
+	    	    FROM log l
+	    	    LEFT JOIN interest i ON l.i_id = i.i_id
+	    	    WHERE l.l_is_public = 1
+	    	      AND l.l_is_draft = 0
+	    	    ORDER BY l.created_at DESC
+	    	    """;
 
 	    try {
 	        conn = pool.getConnection();
@@ -120,7 +129,8 @@ public class LogDao {
 	            dto.setTitle(rs.getString("l_title"));
 	            dto.setUserId(rs.getString("u_id"));
 	            dto.setResultStatus(rs.getString("l_result_status"));
-
+	            dto.setFieldName(rs.getString("i_name") != null ? rs.getString("i_name") : "기타");
+	            
 	            if (rs.getTimestamp("created_at") != null) {
 	                dto.setCreatedAt(
 	                        rs.getTimestamp("created_at").toLocalDateTime()
@@ -375,41 +385,225 @@ public class LogDao {
         return ok;
     }
 
-    // =========================
-    // SELECT: by l_id
-    // =========================
-    public LogDto findById(long logId) {
+    //로그 id로 상세 조회
+    public LogPost findPostById(long logId) {
+
         Connection conn = null;
-        PreparedStatement pstmt = null;
+        PreparedStatement ps = null;
         ResultSet rs = null;
-
-        LogDto dto = null;
-
-        String sql = """
-            SELECT
-                l_id, u_id, l_title, i_id, c_id,
-                l_result_status, l_is_public, l_is_draft,
-                l_content_url, l_goal, l_result_rating,
-                l_process, l_plan_difference, l_difference, l_reflection,
-                next_plan_type, retry_condition, created_at
-            FROM log
-            WHERE l_id = ?
-            """;
 
         try {
             conn = pool.getConnection();
-            pstmt = conn.prepareStatement(sql);
-            pstmt.setLong(1, logId);
 
-            rs = pstmt.executeQuery();
-            if (rs.next()) dto = mapRow(rs);
+            // 1) log + interest + category (이름까지)
+            String sql = """
+                SELECT
+                    l.l_id,
+                    l.l_title,
+                    l.u_id,
+                    l.i_id,
+                    i.i_name AS interest_name,
+                    l.c_id,
+                    c.c_name AS category_name,
+                    l.l_result_status,
+                    l.l_is_public,
+                    l.l_is_draft,
+                    l.l_content_url,
+                    l.l_goal,
+                    l.l_result_rating,
+                    l.l_process,
+                    l.l_plan_difference,
+                    l.l_difference,
+                    l.l_reflection,
+                    l.next_plan_type,
+                    l.retry_condition,
+                    l.created_at
+                FROM log l
+                LEFT JOIN interest i ON l.i_id = i.i_id
+                LEFT JOIN category c ON l.c_id = c.c_id
+                WHERE l.l_id = ?
+                """;
+
+            ps = conn.prepareStatement(sql);
+            ps.setLong(1, logId);
+            rs = ps.executeQuery();
+
+            if (!rs.next()) return null;
+
+            long lId = rs.getLong("l_id");
+            String title = rs.getString("l_title");
+
+            String field = rs.getString("interest_name");   // i_name
+            String subCategory = rs.getString("category_name"); // c_name
+
+            String dbStatus = rs.getString("l_result_status"); // SUCCESS/FAIL/ONGOING
+            LogStatus status = mapDbStatusToLogStatus(dbStatus);
+
+            boolean isPublic = rs.getBoolean("l_is_public");
+
+            // created_at -> LocalDate (LogPost가 LocalDate를 쓰고 있음)
+            LocalDate createdAt = LocalDate.now();
+            Timestamp ts = rs.getTimestamp("created_at");
+            if (ts != null) createdAt = ts.toLocalDateTime().toLocalDate();
+
+            // 본문 필드들
+            String goalText = rs.getString("l_goal");
+            String mood = mapDbRatingToMoodKorean(rs.getString("l_result_rating")); // VERY_SATISFIED -> 만족해요 ...
+            String processText = rs.getString("l_process");
+            String planGapLevel = mapDbPlanDiffToKorean(rs.getString("l_plan_difference")); // SIMILAR -> 거의 비슷해요 ...
+            String planGapDetail = rs.getString("l_difference");
+            String learningText = rs.getString("l_reflection");
+            String nextPlan = rs.getString("next_plan_type");
+            String retryCondition = rs.getString("retry_condition");
+
+            String linkUrl = rs.getString("l_content_url");
+
+            // 2) 조인 테이블: good / influence / adjustment (문구 리스트로)
+            List<String> goodPoints = fetchGoodPoints(conn, lId);
+            List<String> influenceFactors = fetchInfluenceFactors(conn, lId);
+            List<String> nextAdjustPoints = fetchAdjustmentPoints(conn, lId);
+
+            // ※ 아래 3개(other 텍스트)는 DB 컬럼이 따로 없으면 null로 둠
+            String goodOther = null;
+            String influenceOther = null;
+            String nextAdjustOther = null;
+
+            // ※ painPoint(아쉬움 한줄)도 DB 컬럼이 따로 없으면 null로 둠
+            String painPoint = null;
+
+            // linkPoint도 별도 컬럼 없으면 null
+            String linkPoint = null;
+
+            // LogPost 생성 (WriteLogView.toLogPost()에서 쓰는 v2 생성자 시그니처 그대로)
+            return new LogPost(
+                "LOG",
+                String.valueOf(lId),
+                safe(field),
+                safe(subCategory),
+                status,
+                safe(title),
+                createdAt,
+                isPublic,
+
+                safe(goalText),
+                safe(mood),
+                goodPoints,
+                goodOther,
+
+                painPoint,
+                influenceFactors,
+                influenceOther,
+
+                safe(processText),
+                safe(planGapLevel),
+                safe(planGapDetail),
+                safe(learningText),
+
+                nextAdjustPoints,
+                nextAdjustOther,
+
+                safe(nextPlan),
+                safe(retryCondition),
+                safe(linkUrl),
+                linkPoint
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         } finally {
-            pool.freeConnection(conn, pstmt, rs);
+            pool.freeConnection(conn, ps, rs);
         }
+    }
 
-        return dto;
+    // ===== LogDao 안에 "추가" (조인 리스트 조회 3개) =====
+    private List<String> fetchGoodPoints(Connection conn, long logId) throws Exception {
+        String sql = """
+            SELECT gp.gp_name
+            FROM log_good_point lgp
+            JOIN good_point gp ON lgp.gp_id = gp.gp_id
+            WHERE lgp.l_id = ?
+            ORDER BY gp.gp_id ASC
+            """;
+        return fetchStringList(conn, sql, logId);
+    }
+
+    private List<String> fetchInfluenceFactors(Connection conn, long logId) throws Exception {
+        String sql = """
+            SELECT f.if_name
+            FROM log_influence_factor lif
+            JOIN influence_factor f ON lif.if_id = f.if_id
+            WHERE lif.l_id = ?
+            ORDER BY f.if_id ASC
+            """;
+        return fetchStringList(conn, sql, logId);
+    }
+
+    private List<String> fetchAdjustmentPoints(Connection conn, long logId) throws Exception {
+        String sql = """
+            SELECT ap.ap_name
+            FROM log_adjustment_point lap
+            JOIN adjustment_point ap ON lap.ap_id = ap.ap_id
+            WHERE lap.l_id = ?
+            ORDER BY ap.ap_id ASC
+            """;
+        return fetchStringList(conn, sql, logId);
+    }
+
+    private List<String> fetchStringList(Connection conn, String sql, long logId) throws Exception {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ps = conn.prepareStatement(sql);
+            ps.setLong(1, logId);
+            rs = ps.executeQuery();
+
+            List<String> list = new ArrayList<>();
+            while (rs.next()) {
+                String v = rs.getString(1);
+                if (v != null && !v.trim().isEmpty()) list.add(v.trim());
+            }
+            return list;
+        } finally {
+            try { if (rs != null) rs.close(); } catch (Exception ignore) {}
+            try { if (ps != null) ps.close(); } catch (Exception ignore) {}
+        }
+    }
+
+    // ===== LogDao 안에 "추가" (ENUM 매핑들) =====
+    private LogStatus mapDbStatusToLogStatus(String db) {
+        if (db == null) return LogStatus.IN_PROGRESS;
+        return switch (db.trim()) {
+            case "SUCCESS" -> LogStatus.DONE;
+            case "FAIL" -> LogStatus.NEEDS_IMPROVEMENT;
+            case "ONGOING" -> LogStatus.IN_PROGRESS;
+            default -> LogStatus.IN_PROGRESS;
+        };
+    }
+
+    private String mapDbRatingToMoodKorean(String db) {
+        if (db == null) return "";
+        return switch (db.trim()) {
+            case "VERY_SATISFIED" -> "만족해요";
+            case "SATISFIED" -> "괜찮아요";
+            case "SLIGHTLY_DISAPPOINTED" -> "조금 아쉬워요";
+            case "VERY_DISAPPOINTED" -> "많이 아쉬워요";
+            default -> "";
+        };
+    }
+
+    private String mapDbPlanDiffToKorean(String db) {
+        if (db == null) return "";
+        return switch (db.trim()) {
+            case "SIMILAR" -> "거의 비슷해요";
+            case "PARTIAL_DIFF" -> "일부 달라요";
+            case "VERY_DIFF" -> "많이 달라요";
+            default -> "";
+        };
+    }
+
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
     }
 
     // =========================
@@ -533,9 +727,197 @@ public class LogDao {
         return dto;
     }
     
+ 
+    //null 처리
     private String nullIfBlank(String s) {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+    
+    private long ensureGoodPointId(String name) throws SQLException {
+        String n = nullIfBlank(name);
+        if (n == null) throw new SQLException("good point name blank");
+
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            conn = pool.getConnection();
+
+            ps = conn.prepareStatement("SELECT gp_id FROM good_point WHERE gp_name = ?");
+            ps.setString(1, n);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+
+            rs.close(); ps.close();
+
+            ps = conn.prepareStatement("INSERT INTO good_point (gp_name) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, n);
+            ps.executeUpdate();
+
+            rs = ps.getGeneratedKeys();
+            if (rs.next()) return rs.getLong(1);
+
+            throw new SQLException("no generated key for good_point");
+        } catch (Exception e) {
+            throw new SQLException("ensureGoodPointId failed: " + n, e);
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+    }
+
+    private long ensureInfluenceFactorId(String name) throws SQLException {
+        String n = nullIfBlank(name);
+        if (n == null) throw new SQLException("influence factor name blank");
+
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            conn = pool.getConnection();
+
+            ps = conn.prepareStatement("SELECT if_id FROM influence_factor WHERE if_name = ?");
+            ps.setString(1, n);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+
+            rs.close(); ps.close();
+
+            ps = conn.prepareStatement("INSERT INTO influence_factor (if_name) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, n);
+            ps.executeUpdate();
+
+            rs = ps.getGeneratedKeys();
+            if (rs.next()) return rs.getLong(1);
+
+            throw new SQLException("no generated key for influence_factor");
+        } catch (Exception e) {
+            throw new SQLException("ensureInfluenceFactorId failed: " + n, e);
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+    }
+
+    private long ensureAdjustmentPointId(String name) throws SQLException {
+        String n = nullIfBlank(name);
+        if (n == null) throw new SQLException("adjustment point name blank");
+
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            conn = pool.getConnection();
+
+            ps = conn.prepareStatement("SELECT ap_id FROM adjustment_point WHERE ap_name = ?");
+            ps.setString(1, n);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+
+            rs.close(); ps.close();
+
+            ps = conn.prepareStatement("INSERT INTO adjustment_point (ap_name) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, n);
+            ps.executeUpdate();
+
+            rs = ps.getGeneratedKeys();
+            if (rs.next()) return rs.getLong(1);
+
+            throw new SQLException("no generated key for adjustment_point");
+        } catch (Exception e) {
+            throw new SQLException("ensureAdjustmentPointId failed: " + n, e);
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+    }
+
+    public void insertGoodPoints(long logId, java.util.List<String> points) throws SQLException {
+        if (points == null || points.isEmpty()) return;
+
+        String sql = "INSERT INTO log_good_point (l_id, gp_id) VALUES (?, ?)";
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+
+            for (String p : points) {
+                String v = nullIfBlank(p);
+                if (v == null) continue;
+
+                long gpId = ensureGoodPointId(v);
+                ps.setLong(1, logId);
+                ps.setLong(2, gpId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+
+        } catch (Exception e) {
+            throw new SQLException("insertGoodPoints failed", e);
+        } finally {
+            pool.freeConnection(conn, ps);
+        }
+    }
+
+    public void insertInfluenceFactors(long logId, java.util.List<String> factors) throws SQLException {
+        if (factors == null || factors.isEmpty()) return;
+
+        String sql = "INSERT INTO log_influence_factor (l_id, if_id) VALUES (?, ?)";
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+
+            for (String f : factors) {
+                String v = nullIfBlank(f);
+                if (v == null) continue;
+
+                long ifId = ensureInfluenceFactorId(v);
+                ps.setLong(1, logId);
+                ps.setLong(2, ifId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+
+        } catch (Exception e) {
+            throw new SQLException("insertInfluenceFactors failed", e);
+        } finally {
+            pool.freeConnection(conn, ps);
+        }
+    }
+
+    public void insertAdjustmentPoints(long logId, java.util.List<String> points) throws SQLException {
+        if (points == null || points.isEmpty()) return;
+
+        String sql = "INSERT INTO log_adjustment_point (l_id, ap_id) VALUES (?, ?)";
+        Connection conn = null;
+        PreparedStatement ps = null;
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+
+            for (String p : points) {
+                String v = nullIfBlank(p);
+                if (v == null) continue;
+
+                long apId = ensureAdjustmentPointId(v);
+                ps.setLong(1, logId);
+                ps.setLong(2, apId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+
+        } catch (Exception e) {
+            throw new SQLException("insertAdjustmentPoints failed", e);
+        } finally {
+            pool.freeConnection(conn, ps);
+        }
     }
 }

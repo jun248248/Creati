@@ -1,12 +1,16 @@
 package com.creati.ui.main;
 
+import com.creati.dao.LogDao;
+
 // DB(TODO): Swap repositories without changing UI layer.
 
 public final class Services {
 
+	
+	
     private Services() {}
 
-    public static final LogService LOGS = new LogService(new LogRepositoryInMemory());
+    public static final LogService LOGS = new LogService(new LogRepositoryDb(new LogDao()));
     public static final QnaService QNA = new QnaService(new QnaRepositoryInMemory());
     public static final DraftService DRAFTS = new DraftService(new DraftRepositoryInMemory());
 

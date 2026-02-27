@@ -289,7 +289,15 @@ public class ChallengeView extends JPanel {
 
                 // DB: id로 실제 LogPost를 조회해서 상세 화면으로 전달
                 LogPost postToOpen = Services.LOGS.getById(item.id);
-                if (postToOpen == null) postToOpen = toPost(item); 
+                if (postToOpen == null) {
+                    JOptionPane.showMessageDialog(
+                        ChallengeView.this,
+                        "DB에서 상세를 찾지 못했어요.\n(id=" + item.id + ")",
+                        "상세 조회 실패",
+                        JOptionPane.WARNING_MESSAGE
+                    );
+                    return;
+                }
 
                 Window w = SwingUtilities.getWindowAncestor(ChallengeView.this);
                 if (w instanceof MainFrame) {
@@ -390,7 +398,7 @@ public class ChallengeView extends JPanel {
                     status, 
                     dto.getTitle(), 
                     dto.getCreatedAt() != null ? dto.getCreatedAt().toLocalDate() : LocalDate.now(), 
-                    true, // 공개 여부 (기본 true)
+                    dto.isPublic(),
                     "", "", "", "", "", "" // 나머지 내용들은 목록에서 안 쓰이므로 빈칸
                 ));
             }
@@ -592,7 +600,7 @@ public class ChallengeView extends JPanel {
             date.setText(item.createdAt != null ? item.createdAt.format(df) : "");
 
             boolean isPrivate = !item.isPublic;
-            lock.setVisible(isPrivate);
+            lock.setVisible(isPrivate);	
             if (isPrivate) {
                 lock.setText(new String(Character.toChars(0xE897))); 
             }
