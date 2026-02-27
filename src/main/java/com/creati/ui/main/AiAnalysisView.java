@@ -11,6 +11,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
@@ -433,68 +434,38 @@ public class AiAnalysisView extends JPanel {
 
     private void onQuickAction(AiAnalysisRecord.Type type) {
         LogPost log = AppState.get().getSelectedLog();
-        if (log == null) {
-            JOptionPane.showMessageDialog(this, "분석할 로그를 먼저 선택해 주세요.");
-            return;
-        }
+        if (log == null) return;
 
-        
-        if (Services.AI.isTypeAnalyzed(log.id, type)) {
-            JOptionPane.showMessageDialog(this, "이 항목은 이미 분석이 저장됐어요. 다른 항목을 선택해 주세요.");
-            refreshAnalyzedState();
-            return;
-        }
+        pushUserMessage(type.label + " 분석을 시작할게.");
+        pushEttiMessage("잠시만 기다려줘! 열심히 분석 중이야...");
 
-        String userText = switch (type) {
-            case CAUSE -> "이 로그 원인을 분석해줘";
-            case RETRO -> "이 로그 회고를 정리해줘";
-            case RETRY -> "이 로그 재도전 방향을 알려줘";
-        };
-        pushUserMessage(userText);
-
-        
-        AiAnalysisRecord preview = Services.AI.preview(log.id, type);
-        pending.put(type, preview);
-
-        pushEttiMessage(preview.content);
-
-        refreshSaveButtonState();
-        refreshRecordList();
-        refreshAnalyzedState();
+        new Thread(() -> {
+            try {
+                // 실제 AI 호출
+                String response = Services.AI.requestAiAnalysis(log.id, type);
+                SwingUtilities.invokeLater(() -> {
+                    pushEttiMessage(response);
+                    // 분석된 내용을 임시 저장소(pending)에 저장 (기존 UI 로직 유지)
+                    pending.put(type, new AiAnalysisRecord("temp", log.id, type, "미리보기", LocalDate.now(), response));
+                    refreshSaveButtonState();
+                });
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> pushEttiMessage("미안, 분석 중에 오류가 났어: " + e.getMessage()));
+            }
+        }).start();
     }
 
     private void onSave() {
         LogPost log = AppState.get().getSelectedLog();
-        if (log == null) return;
+        if (log == null || pending.isEmpty()) return;
 
-        if (pending.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "저장할 분석 내용이 없어요.");
-            return;
-        }
-
-        
-        int savedCount = 0;
-        for (AiAnalysisRecord.Type t : AiAnalysisRecord.Type.values()) {
-            AiAnalysisRecord r = pending.get(t);
-            if (r == null) continue;
-            if (Services.AI.isTypeAnalyzed(log.id, t)) continue;
-
-            try {
-                Services.AI.save(log.id, t, r.content);
-                savedCount++;
-            } catch (Exception ignore) {}
-        }
+        pending.forEach((type, record) -> {
+            Services.AI.save(log.id, type, record.content);
+        });
 
         pending.clear();
-        refreshSaveButtonState();
-        refreshRecordList();
-        refreshAnalyzedState();
-
-        if (savedCount > 0) {
-            pushEttiMessage("분석이 저장됐어요. 오른쪽에서 결과를 확인할 수 있어요.");
-        } else {
-            JOptionPane.showMessageDialog(this, "이미 저장된 항목이라 저장되지 않았어요.");
-        }
+        pushEttiMessage("분석 기록을 저장했어! 오른쪽 리스트에서 확인할 수 있어.");
+        refreshAll(); // 기존 UI 새로고침 메서드
     }
 
     private void onSendFreeText() {

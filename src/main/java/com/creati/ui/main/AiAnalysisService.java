@@ -1,6 +1,7 @@
 package com.creati.ui.main;
 
 import com.creati.model.LogPost;
+import com.creati.service.GptAnalysisService;
 
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -14,7 +15,8 @@ import java.util.UUID;
 public class AiAnalysisService {
 
     private final AiAnalysisStore store;
-
+    private final GptAnalysisService gptService = new GptAnalysisService();
+    
     public AiAnalysisService(AiAnalysisStore store) {
         this.store = Objects.requireNonNull(store);
     }
@@ -35,14 +37,10 @@ public class AiAnalysisService {
     }
 
     public LogPost findMostRecentLog() {
-        List<LogPost> all = Services.LOGS.list();
-        if (all == null || all.isEmpty()) return null;
-        return all.stream()
-                .filter(p -> p != null && LogPost.TYPE_LOG.equals(p.type))
-                .max(Comparator
-                        .comparing((LogPost p) -> p.createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(p -> p.id == null ? "" : p.id))
-                .orElse(null);
+        return Services.LOGS.list().stream()
+            .filter(p -> p != null && "LOG".equals(p.type))
+            .max(Comparator.comparing(p -> p.createdAt))
+            .orElse(null);
     }
 
     // API(TODO): Preview analysis result (does NOT save). TODO(AI API): 여기서 실제 AI API 호출 결과로 content를 채우도록 교체 
@@ -67,23 +65,8 @@ public class AiAnalysisService {
 
     
     public AiAnalysisRecord save(String logId, AiAnalysisRecord.Type type, String content) {
-        if (logId == null || logId.isBlank()) throw new IllegalArgumentException("logId is required");
-        if (type == null) throw new IllegalArgumentException("type is required");
-
-        if (store.hasType(logId, type)) {
-            throw new IllegalStateException("ALREADY_ANALYZED_TYPE");
-        }
-
-        LogPost log = Services.LOGS.getById(logId);
-        String logTitle = (log == null || log.title == null || log.title.isBlank()) ? "(제목 없음)" : log.title;
-
         AiAnalysisRecord r = new AiAnalysisRecord(
-                "air_" + UUID.randomUUID(),
-                logId,
-                type,
-                logTitle + " · " + type.label,
-                LocalDate.now(),
-                (content == null ? "" : content)
+            UUID.randomUUID().toString(), logId, type, "에티의 " + type.label, LocalDate.now(), content
         );
         store.add(r);
         return r;
@@ -96,7 +79,17 @@ public class AiAnalysisService {
     }
 
     
-    
+    public String requestAiAnalysis(String logId, AiAnalysisRecord.Type type) throws Exception {
+        LogPost log = Services.LOGS.getById(logId);
+        if (log == null) return "로그를 찾을 수 없습니다.";
+
+        // 프롬프트 구성 (UI 수정 없이 내부 로직만 수행)
+        String prompt = String.format(
+            "너는 크리에이터 컨설턴트 에티야. 제목: [%s], 내용: [%s]. [%s] 관점에서 분석해줘.",
+            log.title, log.whatIDid, type.label
+        );
+        return gptService.analyzeWithPrompt(prompt);
+    }
     
 
     private String buildStubContent(AiAnalysisRecord.Type type, LogPost log) {

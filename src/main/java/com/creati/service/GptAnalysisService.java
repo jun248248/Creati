@@ -22,6 +22,22 @@ public class GptAnalysisService {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         return formatResponse(response.body());
     }
+    
+    public String analyzeWithPrompt(String prompt) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        
+        // JSON Body 구성
+        String jsonBody = "{\"contents\": [{\"parts\":[{\"text\": \"" + prompt + "\"}]}]}";
+        
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_URL))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        return formatResponse(response.body());
+    }
 
     private String formatResponse(String response) {
         try {
