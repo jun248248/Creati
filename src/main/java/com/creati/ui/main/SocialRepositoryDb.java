@@ -3,15 +3,18 @@ package com.creati.ui.main;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.creati.dao.ReactionDao;
 import com.creati.dao.ReplyDao;
 import com.creati.dto.ReplyDto;
 
 public class SocialRepositoryDb implements SocialRepository {
 
     private final ReplyDao replyDao;
+    private final ReactionDao reactionDao;
 
-    public SocialRepositoryDb(ReplyDao replyDao) {
+    public SocialRepositoryDb(ReplyDao replyDao, ReactionDao reactionDao) {
         this.replyDao = replyDao;
+        this.reactionDao = reactionDao;
     }
 
     // -------------------------------
@@ -61,14 +64,40 @@ public class SocialRepositoryDb implements SocialRepository {
     public int getViews(String postId) { return 0; }
 
     @Override
-    public void toggleUserReaction(String postId, String userId, SocialStore.ReactionType type) {}
+    public void toggleUserReaction(String postId, String userId, SocialStore.ReactionType type) {
+
+        long logId = Long.parseLong(postId);
+        long rtId = type.ordinal() + 1;
+
+        Long existing = reactionDao.getUserReaction(logId, userId);
+
+        if (existing == null) {
+            reactionDao.insertReaction(logId, rtId, userId);
+        } else if (existing == rtId) {
+            // 같은거 다시 누르면 취소
+            reactionDao.deleteReaction(logId, userId);
+        } else {
+            reactionDao.updateReaction(logId, rtId, userId);
+        }
+    }
+    
+    @Override
+    public SocialStore.ReactionType getUserReaction(String postId, String userId) {
+
+        Long rtId = reactionDao.getUserReaction(Long.parseLong(postId), userId);
+
+        if (rtId == null) return null;
+
+        return SocialStore.ReactionType.values()[(int)(rtId - 1)];
+    }
 
     @Override
-    public SocialStore.ReactionType getUserReaction(String postId, String userId) { return null; }
+    public int getReactionCount(String postId, SocialStore.ReactionType type) {
+        return reactionDao.countByReaction(Long.parseLong(postId), type.ordinal() + 1);
+    }
 
     @Override
-    public int getReactionCount(String postId, SocialStore.ReactionType type) { return 0; }
-
-    @Override
-    public int getTotalReactions(String postId) { return 0; }
+    public int getTotalReactions(String postId) {
+        return reactionDao.countTotal(Long.parseLong(postId));
+    }
 }
