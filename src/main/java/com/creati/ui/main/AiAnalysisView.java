@@ -192,7 +192,14 @@ public class AiAnalysisView extends JPanel {
         chatScroll.setBorder(null);
         chatScroll.getViewport().setOpaque(false);
         chatScroll.setOpaque(false);
+        
+        //스크롤바 정책 설정: 수직 스크롤은 필요할 때만, 가로는 숨김
+        chatScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        chatScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        
+        // 마우스 휠 스크롤 속도 향상
         chatScroll.getVerticalScrollBar().setUnitIncrement(16);
+        
         card.add(chatScroll, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel();
@@ -445,8 +452,16 @@ public class AiAnalysisView extends JPanel {
                 String response = Services.AI.requestAiAnalysis(log.id, type);
                 SwingUtilities.invokeLater(() -> {
                     pushEttiMessage(response);
-                    // 분석된 내용을 임시 저장소(pending)에 저장 (기존 UI 로직 유지)
-                    pending.put(type, new AiAnalysisRecord("temp", log.id, type, "미리보기", LocalDate.now(), response));
+                    
+                    pending.put(type, new AiAnalysisRecord(
+                            UUID.randomUUID().toString(), // 임시 UUID 생성
+                            log.id, 
+                            type, 
+                            "에티의 " + type.label, 
+                            LocalDate.now(), 
+                            response
+                        ));
+                    
                     refreshSaveButtonState();
                 });
             } catch (Exception e) {
@@ -465,7 +480,10 @@ public class AiAnalysisView extends JPanel {
 
         pending.clear();
         pushEttiMessage("분석 기록을 저장했어! 오른쪽 리스트에서 확인할 수 있어.");
+        
+        // UI 상태 동기화
         refreshAll(); // 기존 UI 새로고침 메서드
+        refreshRecordList(); // 기록 리스트 즉시 갱신
     }
 
     private void onSendFreeText() {
@@ -713,19 +731,42 @@ public class AiAnalysisView extends JPanel {
     
 
     private void pushEttiMessage(String text) {
-        chatList.add(messageBubble(text, true));
+        /*chatList.add(messageBubble(text, true));
         chatList.add(Box.createVerticalStrut(10));
         chatList.revalidate();
         chatList.repaint();
-        scrollChatToBottom();
+        scrollChatToBottom();*/
+    	JComponent bubble = messageBubble(text, true);
+        bubble.setAlignmentX(Component.LEFT_ALIGNMENT); // 왼쪽 정렬 강제
+        chatList.add(bubble);
+        chatList.add(Box.createVerticalStrut(12)); // 메시지 간 간격
+        updateChatUI();
+    }
+    
+    //UI 갱신 및 자동 스크롤 하단 이동
+    private void updateChatUI() {
+        chatList.revalidate();
+        chatList.repaint();
+        
+        // 메시지가 추가된 직후 스크롤을 가장 아래로 내림
+        SwingUtilities.invokeLater(() -> {
+            JScrollBar vertical = chatScroll.getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
+        });
     }
 
     private void pushUserMessage(String text) {
-        chatList.add(messageBubble(text, false));
+    	
+        /*chatList.add(messageBubble(text, false));
         chatList.add(Box.createVerticalStrut(10));
         chatList.revalidate();
         chatList.repaint();
-        scrollChatToBottom();
+        scrollChatToBottom();*/
+    	JComponent bubble = messageBubble(text, false);
+        bubble.setAlignmentX(Component.LEFT_ALIGNMENT); // BoxLayout 내 배치 정렬
+        chatList.add(bubble);
+        chatList.add(Box.createVerticalStrut(12));
+        updateChatUI();
     }
 
     private JComponent messageBubble(String text, boolean isEtti) {
@@ -779,6 +820,7 @@ public class AiAnalysisView extends JPanel {
     }
 
     
+  
     private static class RoundedTextBubble extends JPanel {
         private final Color bg;
 
@@ -787,20 +829,44 @@ public class AiAnalysisView extends JPanel {
             this.bg = bg;
             setOpaque(false);
 
+            // 1. 텍스트 영역 설정
             JTextArea area = new JTextArea(text);
             area.setEditable(false);
-            area.setOpaque(false);
+            area.setOpaque(false); // 투명하게 설정하여 말풍선 배경색이 보이게 함
             area.setLineWrap(true);
             area.setWrapStyleWord(true);
             area.setFont(UITheme.BODY);
             area.setForeground(fg);
             area.setBorder(new EmptyBorder(10, 12, 10, 12));
 
+            // 2. [핵심] 텍스트 영역을 개별 JScrollPane으로 감싸기
+            JScrollPane sp = new JScrollPane(area);
+            sp.setOpaque(false);
+            sp.getViewport().setOpaque(false);
+            sp.setBorder(null); // 스크롤 패널의 외곽선 제거
+            sp.getVerticalScrollBar().setUnitIncrement(12); // 스크롤 속도 조절
             
-            Dimension pref = area.getPreferredSize();
-            setMaximumSize(new Dimension(maxWidth, pref.height));
-            setPreferredSize(new Dimension(maxWidth, pref.height));
-add(area, BorderLayout.CENTER);
+            // 3. 말풍선 높이 계산 및 제한
+            // 가로폭을 고정한 상태에서 텍스트의 실제 높이를 계산합니다.
+            area.setSize(new Dimension(maxWidth, 1000)); 
+            int contentHeight = area.getPreferredSize().height;
+            int maxBubbleHeight = 300; // 말풍선 하나의 최대 높이 (이보다 길어지면 스크롤바 생성)
+
+            // 실제 높이는 콘텐츠 높이와 최대 높이 중 작은 값을 선택
+            int finalHeight = Math.min(contentHeight, maxBubbleHeight);
+            
+            // 높이가 최대치를 넘을 때만 스크롤바가 보이도록 설정
+            if (contentHeight > maxBubbleHeight) {
+                sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            } else {
+                sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+            }
+
+            // 말풍선 전체 크기 지정
+            setPreferredSize(new Dimension(maxWidth, finalHeight + 10)); // 약간의 여백 추가
+            setMaximumSize(new Dimension(maxWidth, finalHeight + 10));
+            
+            add(sp, BorderLayout.CENTER);
         }
 
         @Override
@@ -808,6 +874,7 @@ add(area, BorderLayout.CENTER);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(bg);
+            // 둥근 사각형 배경 그리기
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
             g2.dispose();
             super.paintComponent(g);
