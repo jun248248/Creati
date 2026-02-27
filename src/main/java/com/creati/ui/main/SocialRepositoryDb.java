@@ -3,6 +3,7 @@ package com.creati.ui.main;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.creati.dao.LogDao;
 import com.creati.dao.ReactionDao;
 import com.creati.dao.ReplyDao;
 import com.creati.dto.ReplyDto;
@@ -11,10 +12,12 @@ public class SocialRepositoryDb implements SocialRepository {
 
     private final ReplyDao replyDao;
     private final ReactionDao reactionDao;
+    private final LogDao logDao;
 
-    public SocialRepositoryDb(ReplyDao replyDao, ReactionDao reactionDao) {
+    public SocialRepositoryDb(ReplyDao replyDao, ReactionDao reactionDao, LogDao logDao) {
         this.replyDao = replyDao;
         this.reactionDao = reactionDao;
+        this.logDao = logDao;
     }
 
     // -------------------------------
@@ -54,14 +57,23 @@ public class SocialRepositoryDb implements SocialRepository {
         return getComments(postId).size();
     }
 
-    // ---------------------------------
-    // 아직 DB 연결 안 한 기능들
-    // ---------------------------------
     @Override
-    public int addView(String postId) { return 0; }
+    public int addView(String postId) {
+
+        long logId = Long.parseLong(postId);
+
+        logDao.increaseView(logId);
+
+        return logDao.getViewCount(logId);
+    }
 
     @Override
-    public int getViews(String postId) { return 0; }
+    public int getViews(String postId) {
+
+        long logId = Long.parseLong(postId);
+
+        return logDao.getViewCount(logId);
+    }
 
     @Override
     public void toggleUserReaction(String postId, String userId, SocialStore.ReactionType type) {
