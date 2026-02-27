@@ -45,7 +45,7 @@ public class MainFrame extends JFrame {
 	private String currentCardKey = CARD_HOME;
 
 	private final MainSearchBar searchBar = new MainSearchBar();
-	private final ChallengeView challengeView = new ChallengeView();
+	private ChallengeView challengeView;
 	private WriteLogView writeLogView;
 	private AiAnalysisView aiAnalysisView;
 	private final LogDetailView logDetailView = new LogDetailView(() -> showCard(CARD_CHALLENGE),
@@ -84,11 +84,21 @@ public class MainFrame extends JFrame {
 		this.nickname = (user == null || user.getNickname() == null || user.getNickname().isBlank())
 				? "사용자"
 				: user.getNickname();
+		
+		
 
 		String res = (user == null || user.getProfileResPath() == null || user.getProfileResPath().isBlank())
 				? DEFAULT_PROFILE_RES
 				: user.getProfileResPath();
 		this.profileImage = loadImageResource(res);
+		
+		com.creati.dto.UserDto userDto = new com.creati.dto.UserDto();
+		if (user != null) {
+		    userDto.setId(user.getId()); 
+		} else {
+		    userDto.setId("testUser"); 
+		}
+		this.challengeView = new ChallengeView(userDto);
 
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setSize(1200, 760);
@@ -146,7 +156,14 @@ public class MainFrame extends JFrame {
 		contentCards.add(logDetailView, CARD_LOG_DETAIL);
 
 		
-		writeLogView = new WriteLogView(this, () -> showCard(CARD_CHALLENGE), () -> showCard(CARD_CHALLENGE));
+		writeLogView = new WriteLogView(
+			    this,
+			    () -> showCard(CARD_CHALLENGE),   // 뒤로가기
+			    () -> {                           // 저장 완료
+			        challengeView.refresh();      
+			        showCard(CARD_CHALLENGE);
+			    }
+			);
 		contentCards.add(writeLogView, CARD_WRITE);
 
 		

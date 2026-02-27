@@ -11,7 +11,6 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
@@ -192,14 +191,7 @@ public class AiAnalysisView extends JPanel {
         chatScroll.setBorder(null);
         chatScroll.getViewport().setOpaque(false);
         chatScroll.setOpaque(false);
-        
-        //스크롤바 정책 설정: 수직 스크롤은 필요할 때만, 가로는 숨김
-        chatScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        chatScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        
-        // 마우스 휠 스크롤 속도 향상
         chatScroll.getVerticalScrollBar().setUnitIncrement(16);
-        
         card.add(chatScroll, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel();
@@ -441,49 +433,68 @@ public class AiAnalysisView extends JPanel {
 
     private void onQuickAction(AiAnalysisRecord.Type type) {
         LogPost log = AppState.get().getSelectedLog();
-        if (log == null) return;
+        if (log == null) {
+            JOptionPane.showMessageDialog(this, "분석할 로그를 먼저 선택해 주세요.");
+            return;
+        }
 
-        pushUserMessage(type.label + " 분석을 시작할게.");
-        pushEttiMessage("잠시만 기다려줘! 열심히 분석 중이야...");
+        
+        if (Services.AI.isTypeAnalyzed(log.id, type)) {
+            JOptionPane.showMessageDialog(this, "이 항목은 이미 분석이 저장됐어요. 다른 항목을 선택해 주세요.");
+            refreshAnalyzedState();
+            return;
+        }
 
-        new Thread(() -> {
-            try {
-                // 실제 AI 호출
-                String response = Services.AI.requestAiAnalysis(log.id, type);
-                SwingUtilities.invokeLater(() -> {
-                    pushEttiMessage(response);
-                    
-                    pending.put(type, new AiAnalysisRecord(
-                            UUID.randomUUID().toString(), // 임시 UUID 생성
-                            log.id, 
-                            type, 
-                            "에티의 " + type.label, 
-                            LocalDate.now(), 
-                            response
-                        ));
-                    
-                    refreshSaveButtonState();
-                });
-            } catch (Exception e) {
-                SwingUtilities.invokeLater(() -> pushEttiMessage("미안, 분석 중에 오류가 났어: " + e.getMessage()));
-            }
-        }).start();
+        String userText = switch (type) {
+            case CAUSE -> "이 로그 원인을 분석해줘";
+            case RETRO -> "이 로그 회고를 정리해줘";
+            case RETRY -> "이 로그 재도전 방향을 알려줘";
+        };
+        pushUserMessage(userText);
+
+        
+        AiAnalysisRecord preview = Services.AI.preview(log.id, type);
+        pending.put(type, preview);
+
+        pushEttiMessage(preview.content);
+
+        refreshSaveButtonState();
+        refreshRecordList();
+        refreshAnalyzedState();
     }
 
     private void onSave() {
         LogPost log = AppState.get().getSelectedLog();
-        if (log == null || pending.isEmpty()) return;
+        if (log == null) return;
 
-        pending.forEach((type, record) -> {
-            Services.AI.save(log.id, type, record.content);
-        });
+        if (pending.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "저장할 분석 내용이 없어요.");
+            return;
+        }
+
+        
+        int savedCount = 0;
+        for (AiAnalysisRecord.Type t : AiAnalysisRecord.Type.values()) {
+            AiAnalysisRecord r = pending.get(t);
+            if (r == null) continue;
+            if (Services.AI.isTypeAnalyzed(log.id, t)) continue;
+
+            try {
+                Services.AI.save(log.id, t, r.content);
+                savedCount++;
+            } catch (Exception ignore) {}
+        }
 
         pending.clear();
-        pushEttiMessage("분석 기록을 저장했어! 오른쪽 리스트에서 확인할 수 있어.");
-        
-        // UI 상태 동기화
-        refreshAll(); // 기존 UI 새로고침 메서드
-        refreshRecordList(); // 기록 리스트 즉시 갱신
+        refreshSaveButtonState();
+        refreshRecordList();
+        refreshAnalyzedState();
+
+        if (savedCount > 0) {
+            pushEttiMessage("분석이 저장됐어요. 오른쪽에서 결과를 확인할 수 있어요.");
+        } else {
+            JOptionPane.showMessageDialog(this, "이미 저장된 항목이라 저장되지 않았어요.");
+        }
     }
 
     private void onSendFreeText() {
@@ -731,42 +742,19 @@ public class AiAnalysisView extends JPanel {
     
 
     private void pushEttiMessage(String text) {
-        /*chatList.add(messageBubble(text, true));
+        chatList.add(messageBubble(text, true));
         chatList.add(Box.createVerticalStrut(10));
         chatList.revalidate();
         chatList.repaint();
-        scrollChatToBottom();*/
-    	JComponent bubble = messageBubble(text, true);
-        bubble.setAlignmentX(Component.LEFT_ALIGNMENT); // 왼쪽 정렬 강제
-        chatList.add(bubble);
-        chatList.add(Box.createVerticalStrut(12)); // 메시지 간 간격
-        updateChatUI();
-    }
-    
-    //UI 갱신 및 자동 스크롤 하단 이동
-    private void updateChatUI() {
-        chatList.revalidate();
-        chatList.repaint();
-        
-        // 메시지가 추가된 직후 스크롤을 가장 아래로 내림
-        SwingUtilities.invokeLater(() -> {
-            JScrollBar vertical = chatScroll.getVerticalScrollBar();
-            vertical.setValue(vertical.getMaximum());
-        });
+        scrollChatToBottom();
     }
 
     private void pushUserMessage(String text) {
-    	
-        /*chatList.add(messageBubble(text, false));
+        chatList.add(messageBubble(text, false));
         chatList.add(Box.createVerticalStrut(10));
         chatList.revalidate();
         chatList.repaint();
-        scrollChatToBottom();*/
-    	JComponent bubble = messageBubble(text, false);
-        bubble.setAlignmentX(Component.LEFT_ALIGNMENT); // BoxLayout 내 배치 정렬
-        chatList.add(bubble);
-        chatList.add(Box.createVerticalStrut(12));
-        updateChatUI();
+        scrollChatToBottom();
     }
 
     private JComponent messageBubble(String text, boolean isEtti) {
@@ -820,7 +808,6 @@ public class AiAnalysisView extends JPanel {
     }
 
     
-  
     private static class RoundedTextBubble extends JPanel {
         private final Color bg;
 
@@ -829,44 +816,20 @@ public class AiAnalysisView extends JPanel {
             this.bg = bg;
             setOpaque(false);
 
-            // 1. 텍스트 영역 설정
             JTextArea area = new JTextArea(text);
             area.setEditable(false);
-            area.setOpaque(false); // 투명하게 설정하여 말풍선 배경색이 보이게 함
+            area.setOpaque(false);
             area.setLineWrap(true);
             area.setWrapStyleWord(true);
             area.setFont(UITheme.BODY);
             area.setForeground(fg);
             area.setBorder(new EmptyBorder(10, 12, 10, 12));
 
-            // 2. [핵심] 텍스트 영역을 개별 JScrollPane으로 감싸기
-            JScrollPane sp = new JScrollPane(area);
-            sp.setOpaque(false);
-            sp.getViewport().setOpaque(false);
-            sp.setBorder(null); // 스크롤 패널의 외곽선 제거
-            sp.getVerticalScrollBar().setUnitIncrement(12); // 스크롤 속도 조절
             
-            // 3. 말풍선 높이 계산 및 제한
-            // 가로폭을 고정한 상태에서 텍스트의 실제 높이를 계산합니다.
-            area.setSize(new Dimension(maxWidth, 1000)); 
-            int contentHeight = area.getPreferredSize().height;
-            int maxBubbleHeight = 300; // 말풍선 하나의 최대 높이 (이보다 길어지면 스크롤바 생성)
-
-            // 실제 높이는 콘텐츠 높이와 최대 높이 중 작은 값을 선택
-            int finalHeight = Math.min(contentHeight, maxBubbleHeight);
-            
-            // 높이가 최대치를 넘을 때만 스크롤바가 보이도록 설정
-            if (contentHeight > maxBubbleHeight) {
-                sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-            } else {
-                sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-            }
-
-            // 말풍선 전체 크기 지정
-            setPreferredSize(new Dimension(maxWidth, finalHeight + 10)); // 약간의 여백 추가
-            setMaximumSize(new Dimension(maxWidth, finalHeight + 10));
-            
-            add(sp, BorderLayout.CENTER);
+            Dimension pref = area.getPreferredSize();
+            setMaximumSize(new Dimension(maxWidth, pref.height));
+            setPreferredSize(new Dimension(maxWidth, pref.height));
+add(area, BorderLayout.CENTER);
         }
 
         @Override
@@ -874,7 +837,6 @@ public class AiAnalysisView extends JPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(bg);
-            // 둥근 사각형 배경 그리기
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
             g2.dispose();
             super.paintComponent(g);
