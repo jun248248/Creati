@@ -156,7 +156,7 @@ public class AiAnalysisView extends JPanel {
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         split.setBorder(null);
         split.setDividerSize(8);
-        split.setResizeWeight(0.50); 
+        split.setResizeWeight(0.70); 
         split.setContinuousLayout(true);
 
         split.setLeftComponent(buildChatPanel());
@@ -760,12 +760,15 @@ public class AiAnalysisView extends JPanel {
     private JComponent messageBubble(String text, boolean isEtti) {
         JPanel wrap = new JPanel(new BorderLayout());
         wrap.setOpaque(false);
+        // chatList(BoxLayout Y축)에서 가로를 꽉 채워야 EAST/WEST 정렬이 동작함
+        wrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         RoundedTextBubble bubble = new RoundedTextBubble(
                 text,
                 isEtti ? UITheme.YELLOW_200 : UITheme.ACCENT_LAVENDER_BG,
                 isEtti ? UITheme.RGB_80_80_90 : UITheme.TEXT,
-                440 
+                440
         );
 
         if (isEtti) {
@@ -826,10 +829,14 @@ public class AiAnalysisView extends JPanel {
             area.setBorder(new EmptyBorder(10, 12, 10, 12));
 
             
-            Dimension pref = area.getPreferredSize();
-            setMaximumSize(new Dimension(maxWidth, pref.height));
-            setPreferredSize(new Dimension(maxWidth, pref.height));
-add(area, BorderLayout.CENTER);
+            // maxWidth 기준으로 실제 줄바꿈 후 높이를 정확히 계산
+            int innerWidth = maxWidth - 24; // 좌우 패딩(12+12) 제외
+            area.setSize(new Dimension(innerWidth, Short.MAX_VALUE));
+            int calcHeight = area.getPreferredSize().height;
+
+            setMaximumSize(new Dimension(maxWidth, calcHeight));
+            setPreferredSize(new Dimension(maxWidth, calcHeight));
+            add(area, BorderLayout.CENTER);
         }
 
         @Override
