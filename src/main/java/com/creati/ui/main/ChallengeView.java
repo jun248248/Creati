@@ -330,7 +330,6 @@ public class ChallengeView extends JPanel {
         List<LogItem> filtered = new ArrayList<>();
         
         // 디버깅: allLogs에 진짜 데이터가 들어있는지 확인
-        System.out.println(">>> [필터 시작] 현재 메모리상의 총 로그 수: " + allLogs.size());
 
         for (LogItem item : allLogs) {
             // 1. 카테고리 비교 (trim()을 추가하여 공백 제거 비교)
@@ -346,8 +345,6 @@ public class ChallengeView extends JPanel {
             if (okCat && okQuery) {
                 filtered.add(item);
             } else {
-                System.out.println(">>> [필터 탈락] 제목: " + item.title + " | 사유: " + 
-                                   (!okCat ? "카테고리 불일치" : "검색어 불일치"));
             }
         }
 
@@ -380,7 +377,6 @@ public class ChallengeView extends JPanel {
         if (currentUser != null) {
             List<com.creati.dto.MyLogListDto> dbLogs = logDao.findMyLogList(currentUser.getId(), selectedCatId);
 
-            System.out.println("디버깅: DB에서 가져온 로그 개수 = " + (dbLogs != null ? dbLogs.size() : "null"));
             // 3. 화면에 띄울 수 있게 LogItem으로 변환
             for (com.creati.dto.MyLogListDto dto : dbLogs) {
                 // DB의 결과 상태(SUCCESS, FAIL)를 화면용 상태(LogStatus)로 변환

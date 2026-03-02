@@ -60,8 +60,6 @@ public class LogDao {
 	        conn = pool.getConnection();
 	        pstmt = conn.prepareStatement(sql.toString());
 	        
-	        // 디버깅: 현재 어떤 ID로 조회하는지 출력
-	        System.out.println(">>> DAO 조회 ID: [" + userId + "]"); 
 	        
 	        pstmt.setString(1, userId);
 	        if (categoryId != null && categoryId > 0) {
