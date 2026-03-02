@@ -104,7 +104,7 @@ public class LogRepositoryDb implements LogRepository {
                     ? r.getCreatedAt().toLocalDate() : LocalDate.now();
             String field = (r.getFieldName() != null && !r.getFieldName().isBlank())
                     ? r.getFieldName() : "기타";
-            dedup.put(r.getId(), new LogPost(
+            LogPost lp = new LogPost(
                     LogPost.TYPE_LOG,
                     String.valueOf(r.getId()),
                     field,
@@ -114,7 +114,9 @@ public class LogRepositoryDb implements LogRepository {
                     created,
                     true,
                     null, null, null, null, null, null
-            ));
+            );
+            lp.authorId = r.getUserId(); // ← 작성자 ID 세팅
+            dedup.put(r.getId(), lp);
         }
         return new ArrayList<>(dedup.values());
     }

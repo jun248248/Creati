@@ -17,8 +17,9 @@ public class Chip extends JComponent {
 	private int minH = 24;
 
 	public Chip() {
-		setOpaque(false);
-		setFont(UITheme.CAPTION);
+	    setOpaque(false);
+	    setFont(UITheme.CAPTION);
+	    setAlignmentY(0.5f); 
 	}
 
 	public void setChip(String text, Color bg, Color fg) {

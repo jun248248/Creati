@@ -48,19 +48,23 @@ public class AuthService {
 
 	public User login(String id, String pw) {
 
-	    UserDto dto = userDao.login(id, pw);
+    UserDto dto = userDao.login(id, pw);
 
-	    if (dto == null) {
-	        return null;
-	    }
+    if (dto == null) {
+        return null;
+    }
 
-	    return new User(
-	            dto.getId(),
-	            pw,                     
-	            dto.getName(),           
-	            null
-	    );
-	}
+    return new User(
+            dto.getId(),
+            pw,
+            dto.getName(),
+            null,
+            dto.getPhone(),
+            dto.getEmail(),
+            dto.getBirth(),
+            dto.getPlatform()
+    );
+}
 
 	public boolean isDuplicateId(String id) {
 		return id != null && users.containsKey(id);

@@ -1115,4 +1115,102 @@ public class LogDao {
 	    return 0;
 	}
 
+	// 육각형 그래프용 지표 쿼리 
+
+	/** 꾸준함: 최근 7일 성장 로그 작성 횟수 */
+	public int countLogsLast7Days(String userId) {
+		String sql = """
+				SELECT COUNT(*) FROM log
+				WHERE u_id = ? AND l_is_draft = 0
+				  AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+				""";
+		return queryCount(sql, userId);
+	}
+
+	/** 도전력: 전체 기간 사용한 카테고리(c_id) 종류 수 */
+	public int countDistinctCategoriesAll(String userId) {
+		String sql = """
+				SELECT COUNT(DISTINCT c_id) FROM log
+				WHERE u_id = ? AND l_is_draft = 0 AND c_id IS NOT NULL AND c_id > 0
+				""";
+		return queryCount(sql, userId);
+	}
+
+	/** 소통력: 최근 7일 내 작성한 로그에 달린 반응(공감) 수 */
+	public int countReactionsOnMyLogsLast7Days(String userId) {
+		String sql = """
+				SELECT COUNT(*) FROM log_reaction lr
+				JOIN log l ON lr.l_id = l.l_id
+				WHERE l.u_id = ? AND l.l_is_draft = 0
+				  AND l.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+				""";
+		return queryCount(sql, userId);
+	}
+
+	/** 실행력: 최근 30일 전체 로그 중 SUCCESS 비율 (0~100 정수) */
+	public int calcExecutionRateLast30Days(String userId) {
+		String total = """
+				SELECT COUNT(*) FROM log
+				WHERE u_id = ? AND l_is_draft = 0
+				  AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+				""";
+		String done = """
+				SELECT COUNT(*) FROM log
+				WHERE u_id = ? AND l_is_draft = 0
+				  AND l_result_status = 'SUCCESS'
+				  AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+				""";
+		int t = queryCount(total, userId);
+		if (t == 0) return 0;
+		int d = queryCount(done, userId);
+		return (int) Math.round(d * 100.0 / t);
+	}
+
+	/** 회복력: 보완 필요/진행 중 → SUCCESS로 변경된 로그 수 (l_result_status = SUCCESS 이고 한번이라도 FAIL/ONGOING 이었던 것 근사: 전체 SUCCESS 중 retry_condition이 있는 것) */
+	public int countRecoveredLogs(String userId) {
+		String sql = """
+				SELECT COUNT(*) FROM log
+				WHERE u_id = ? AND l_is_draft = 0
+				  AND l_result_status = 'SUCCESS'
+				  AND retry_condition IS NOT NULL AND retry_condition <> ''
+				""";
+		return queryCount(sql, userId);
+	}
+
+	/** 성찰력: 전체 로그 중 ai_analysis가 있는 비율 (0~100 정수) */
+	public int calcReflectionRate(String userId) {
+		String total = """
+				SELECT COUNT(*) FROM log
+				WHERE u_id = ? AND l_is_draft = 0
+				""";
+		String aiDone = """
+				SELECT COUNT(DISTINCT l.l_id) FROM log l
+				JOIN ai_analysis a ON l.l_id = a.l_id
+				WHERE l.u_id = ? AND l.l_is_draft = 0
+				""";
+		int t = queryCount(total, userId);
+		if (t == 0) return 0;
+		int d = queryCount(aiDone, userId);
+		return (int) Math.round(d * 100.0 / t);
+	}
+
+	/** 공통 COUNT 쿼리 헬퍼 */
+	private int queryCount(String sql, String userId) {
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		try {
+			conn = pool.getConnection();
+			ps = conn.prepareStatement(sql);
+			ps.setString(1, userId);
+			rs = ps.executeQuery();
+			if (rs.next()) return rs.getInt(1);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			pool.freeConnection(conn, ps, rs);
+		}
+		return 0;
+	}
+
 }

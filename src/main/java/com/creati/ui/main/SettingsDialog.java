@@ -1,6 +1,7 @@
 package com.creati.ui.main;
 
 import com.creati.model.User;
+import com.creati.dao.UserDao;
 import com.creati.ui.components.RoundedButton;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
@@ -9,23 +10,30 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.*;
 import java.util.List;
-import java.util.Objects;
 
 /**
- * 설정 다이얼로그
- * - 회원정보 수정 (아이디/전화번호 잠금)
- * - 비밀번호 변경 (동일 다이얼로그 내 탭)
- * - 관심분야(최대 3개)
+ * 설정 다이얼로그 (DB 연동 쉽게 정리 버전)
  *
- * DB(TODO): user 테이블 업데이트
- * DB(TODO): 관심분야 매핑 테이블 업데이트
- * DB(TODO): 비밀번호 변경
+ * 역할:
+ *  - UI 입력 수집/검증
+ *  - SettingsUpdateRequest 생성
+ *  - SettingsService로 저장 요청 (DB 붙일 때 서비스 구현만 교체)
+ *
+ * DB(TODO): SettingsService 구현(DbSettingsService)에서
+ *  - users 테이블 UPDATE
+ *  - user_interest 매핑 테이블 replace(DELETE + INSERT) (트랜잭션)
+ *  - 비밀번호 변경 (현재 비번 검증 포함)
  */
 public class SettingsDialog extends JDialog {
 
     private final MainFrame parent;
+    private final SettingsService settingsService;
 
     // =========================
     // Profile fields
@@ -33,7 +41,7 @@ public class SettingsDialog extends JDialog {
     private JTextField tfUserId;
     private JTextField tfPhone;
     private JTextField tfNickname;
-    private JTextField tfBirth;
+    private JTextField tfBirth;   // YYYY-MM-DD
     private JTextField tfEmail;
     private JComboBox<String> cbPlatform;
 
@@ -48,12 +56,20 @@ public class SettingsDialog extends JDialog {
     // Interests (max 3)
     // =========================
     private JComboBox<String> cbInterest;
+    private JButton btnAddInterest;
     private JPanel interestChipRow;
-    private final List<String> selectedInterests = new ArrayList<>();
+    private final List<String> selectedInterestNames = new ArrayList<>();
+
+    private final Map<String, Long> interestNameToId = new LinkedHashMap<>();
 
     public SettingsDialog(MainFrame parent) {
+        this(parent, new DbSettingsService()); 
+    }
+
+    public SettingsDialog(MainFrame parent, SettingsService settingsService) {
         super(parent, "설정", true);
         this.parent = Objects.requireNonNull(parent);
+        this.settingsService = Objects.requireNonNull(settingsService);
 
         UITheme.ensureInit();
         FontKit.init();
@@ -161,7 +177,10 @@ public class SettingsDialog extends JDialog {
         tfEmail = field(true);
         addRow(form, c, "이메일", tfEmail, false);
 
-        cbPlatform = new JComboBox<>(new String[]{"YouTube", "Instagram", "Blog", "Brunch", "TicTok", "SoundCloud", "Other"});
+        cbPlatform = new JComboBox<>(new String[]{
+                "선택",
+                "YouTube", "Instagram", "Blog", "Brunch", "TikTok", "SoundCloud", "Other"
+        });
         cbPlatform.setFont(UITheme.BODY);
         cbPlatform.setBackground(UITheme.WHITE);
         addRow(form, c, "주요 플랫폼", cbPlatform, false);
@@ -178,7 +197,6 @@ public class SettingsDialog extends JDialog {
         hint.add(note, BorderLayout.WEST);
 
         card.add(hint, BorderLayout.SOUTH);
-
         return wrapWithPadding(card);
     }
 
@@ -231,19 +249,21 @@ public class SettingsDialog extends JDialog {
         guide.setForeground(UITheme.MUTED_TEXT);
 
         cbInterest = new JComboBox<>(new String[]{
-                "영상", "이미지", "글", "음악", "기타"
+                "선택"
         });
         cbInterest.setFont(UITheme.BODY);
         cbInterest.setBackground(UITheme.WHITE);
 
-        JButton add = new RoundedButton("추가");
-        styleGrey(add);
-        add.addActionListener(this::onAddInterest);
+        loadInterestOptions(); 
+
+        btnAddInterest = new RoundedButton("추가");
+        styleGrey(btnAddInterest);
+        btnAddInterest.addActionListener(this::onAddInterest);
 
         JPanel pickRow = new JPanel(new BorderLayout(10, 0));
         pickRow.setOpaque(false);
         pickRow.add(cbInterest, BorderLayout.CENTER);
-        pickRow.add(add, BorderLayout.EAST);
+        pickRow.add(btnAddInterest, BorderLayout.EAST);
 
         top.add(guide);
         top.add(Box.createVerticalStrut(10));
@@ -264,36 +284,46 @@ public class SettingsDialog extends JDialog {
     // =========================
 
     private void onAddInterest(ActionEvent e) {
-        if (selectedInterests.size() >= 3) {
+        if (selectedInterestNames.size() >= 3) {
             JOptionPane.showMessageDialog(this, "관심분야는 최대 3개까지 선택할 수 있어요.");
             return;
         }
 
         Object v = cbInterest.getSelectedItem();
         String s = (v == null) ? "" : v.toString().trim();
-        if (s.isBlank()) return;
+        if (s.isBlank() || "선택".equals(s)) return;
 
-        if (selectedInterests.contains(s)) {
+        if (selectedInterestNames.contains(s)) {
             JOptionPane.showMessageDialog(this, "이미 선택된 관심분야예요.");
             return;
         }
 
-        selectedInterests.add(s);
+        selectedInterestNames.add(s);
         redrawInterestChips();
+        updateInterestAddState();
     }
 
     private void onRemoveInterest(String s) {
-        selectedInterests.remove(s);
+        selectedInterestNames.remove(s);
         redrawInterestChips();
+        updateInterestAddState();
     }
 
     private void redrawInterestChips() {
         interestChipRow.removeAll();
-        for (String s : selectedInterests) {
+        for (String s : selectedInterestNames) {
             interestChipRow.add(new Chip(s, () -> onRemoveInterest(s)));
         }
         interestChipRow.revalidate();
         interestChipRow.repaint();
+    }
+
+    private void updateInterestAddState() {
+        if (btnAddInterest == null) return;
+        btnAddInterest.setEnabled(selectedInterestNames.size() < 3);
+        btnAddInterest.setToolTipText(
+                selectedInterestNames.size() < 3 ? null : "관심분야는 최대 3개까지 선택할 수 있어요."
+        );
     }
 
     private void onSave() {
@@ -309,20 +339,41 @@ public class SettingsDialog extends JDialog {
             JOptionPane.showMessageDialog(this, "닉네임은 비워둘 수 없어요.");
             return;
         }
-        if (selectedInterests.size() > 3) {
-            JOptionPane.showMessageDialog(this, "관심분야는 최대 3개까지 선택할 수 있어요.");
+
+        String email = tfEmail.getText().trim();
+        if (email.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "이메일은 필수 입력이에요.");
             return;
         }
-        if (!tfBirth.getText().trim().isEmpty() && !tfBirth.getText().trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
-            JOptionPane.showMessageDialog(this, "생년월일 형식이 올바르지 않아요. 예) 2001-03-15");
-            return;
-        }
-        if (!tfEmail.getText().trim().isEmpty() && !tfEmail.getText().trim().contains("@")) {
+        if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
             JOptionPane.showMessageDialog(this, "이메일 형식이 올바르지 않아요.");
             return;
         }
 
-        // ---- password validate (optional) ----
+        String birthText = tfBirth.getText().trim();
+        if (birthText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "생년월일은 필수 입력이에요.");
+            return;
+        }
+        LocalDate birth;
+        try {
+            birth = LocalDate.parse(birthText);
+        } catch (DateTimeParseException ex) {
+            JOptionPane.showMessageDialog(this, "생년월일이 올바르지 않아요. 예) 2001-03-15");
+            return;
+        }
+
+        String platform = Objects.toString(cbPlatform.getSelectedItem(), "").trim();
+        if (platform.isEmpty() || "선택".equals(platform)) {
+            JOptionPane.showMessageDialog(this, "주요 플랫폼은 필수 선택이에요.");
+            return;
+        }
+
+        if (selectedInterestNames.size() > 3) {
+            JOptionPane.showMessageDialog(this, "관심분야는 최대 3개까지 선택할 수 있어요.");
+            return;
+        }
+
         String cur = new String(pfCurrent.getPassword()).trim();
         String nw = new String(pfNew.getPassword()).trim();
         String cf = new String(pfConfirm.getPassword()).trim();
@@ -343,30 +394,47 @@ public class SettingsDialog extends JDialog {
             }
         }
 
-        // ---- apply to user (local) ----
-        UserReflect.set(u, nickname, "setNickname", "setNick", "setName");
-        UserReflect.set(u, tfBirth.getText().trim(), "setBirth", "setBirthDate", "setBirthday");
-        UserReflect.set(u, tfEmail.getText().trim(), "setEmail", "setMail");
-        UserReflect.set(u, Objects.toString(cbPlatform.getSelectedItem(), ""), "setMainPlatform", "setPlatform", "setPrimaryPlatform");
+        SettingsUpdateRequest req = new SettingsUpdateRequest(
+                u.getId(),
+                nickname,
+                email,
+                birth,
+                platform,
+                convertTagsToIds(selectedInterestNames),
+                wantsPwChange ? cur : null,
+                wantsPwChange ? nw : null
+        );
+        req.interestNames().addAll(selectedInterestNames);
 
-        // 관심분야 (max 3)
-        // DB(TODO): user_interest 같은 매핑테이블 upsert
-        UserReflect.set(u, new ArrayList<>(selectedInterests), "setInterests", "setInterestList", "setInterestNames");
+        SettingsSaveResult result = settingsService.save(req);
 
-        // 비밀번호 변경
-        if (wantsPwChange) {
-            // DB(TODO): 현재 비밀번호 검증 + 변경 처리
-            // 예: userDao.updatePassword(userId, cur, nw);
+        if (!result.ok) {
+            JOptionPane.showMessageDialog(this, result.message == null ? "저장에 실패했어요." : result.message);
+            return;
         }
 
-        AppState.get().setCurrentUser(u);
+        User updated = result.updatedUser != null ? result.updatedUser : u;
+        AppState.get().setCurrentUser(updated);
         parent.refreshHeaderUser();
 
-        JOptionPane.showMessageDialog(this,
-                wantsPwChange
-                        ? "저장됐어요! (비밀번호 변경/DB 연동은 TODO)"
-                        : "저장됐어요! (DB 연동은 TODO)");
+        pfCurrent.setText("");
+        pfNew.setText("");
+        pfConfirm.setText("");
+
+        JOptionPane.showMessageDialog(this, "저장됐어요!");
         dispose();
+    }
+
+    private List<Long> convertTagsToIds(List<String> tags) {
+        List<Long> ids = new ArrayList<>();
+        if (tags == null) return ids;
+        for (String tag : tags) {
+            if (tag == null) continue;
+            Long id = interestNameToId.get(tag.trim());
+            if (id != null) ids.add(id);
+        }
+        LinkedHashSet<Long> uniq = new LinkedHashSet<>(ids);
+        return new ArrayList<>(uniq);
     }
 
     // =========================
@@ -387,18 +455,57 @@ public class SettingsDialog extends JDialog {
         String platform = UserReflect.getString(u, "getMainPlatform", "getPlatform", "getPrimaryPlatform");
         if (!platform.isBlank()) cbPlatform.setSelectedItem(platform);
 
-        List<String> interests = UserReflect.getStringList(u, "getInterests", "getInterestList", "getInterestNames");
-        selectedInterests.clear();
+        loadInterestOptions();
+
+        List<String> dbInterests = loadInterestsFromDb(u.getId());
+
+        List<String> interests = (dbInterests != null && !dbInterests.isEmpty())
+                ? dbInterests
+                : UserReflect.getStringList(u, "getInterests", "getInterestList", "getInterestNames");
+        selectedInterestNames.clear();
         if (interests != null) {
             for (String s : interests) {
                 if (s == null) continue;
                 String t = s.trim();
-                if (!t.isEmpty() && selectedInterests.size() < 3 && !selectedInterests.contains(t)) {
-                    selectedInterests.add(t);
+                if (!t.isEmpty() && selectedInterestNames.size() < 3 && !selectedInterestNames.contains(t)) {
+                    selectedInterestNames.add(t);
                 }
             }
         }
         redrawInterestChips();
+        updateInterestAddState();
+    }
+
+    private void loadInterestOptions() {
+        if (cbInterest == null) return;
+        try {
+            UserDao dao = new UserDao();
+            LinkedHashMap<Long, String> map = dao.findAllInterests();
+            if (map == null || map.isEmpty()) return;
+
+            interestNameToId.clear();
+            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+            model.addElement("선택");
+            for (Map.Entry<Long, String> e : map.entrySet()) {
+                if (e.getKey() == null) continue;
+                String name = (e.getValue() == null) ? "" : e.getValue().trim();
+                if (name.isEmpty()) continue;
+                interestNameToId.put(name, e.getKey());
+                model.addElement(name);
+            }
+            cbInterest.setModel(model);
+        } catch (Exception ignore) {
+        }
+    }
+
+    private List<String> loadInterestsFromDb(String userId) {
+        if (userId == null || userId.isBlank()) return List.of();
+        try {
+            UserDao dao = new UserDao();
+            return dao.findInterestNamesByUserId(userId);
+        } catch (Exception ignore) {
+            return List.of();
+        }
     }
 
     // =========================
@@ -554,7 +661,142 @@ public class SettingsDialog extends JDialog {
     }
 
     // =========================
-    // Reflection helper 
+    // Service boundary
+    // =========================
+
+    public interface SettingsService {
+        SettingsSaveResult save(SettingsUpdateRequest req);
+    }
+
+    public static class DbSettingsService implements SettingsService {
+        private final UserDao userDao = new UserDao();
+
+        @Override
+        public SettingsSaveResult save(SettingsUpdateRequest req) {
+            if (req == null || req.userId == null || req.userId.isBlank()) {
+                return SettingsSaveResult.fail("로그인 정보가 없어요. 다시 로그인해 주세요.");
+            }
+
+            boolean ok = userDao.updateSettings(
+                    req.userId,
+                    req.nickname,
+                    req.email,
+                    req.birth,
+                    req.platform,
+                    req.interestIds,
+                    req.currentPassword,
+                    req.newPassword
+            );
+
+            if (!ok) {
+                return SettingsSaveResult.fail("저장에 실패했어요. (현재 비밀번호 또는 DB 오류)");
+            }
+
+            User u = AppState.get().getCurrentUser();
+            if (u != null && req.userId.equals(u.getId())) {
+                User updated = new User(
+                        u.getId(),
+                        u.getPassword(),
+                        req.nickname,
+                        u.getProfileResPath()
+                );
+                AppState.get().setCurrentUser(updated);
+                return SettingsSaveResult.ok(updated);
+            }
+
+            return SettingsSaveResult.ok(u);
+        }
+    }
+
+    public static class InMemorySettingsService implements SettingsService {
+        @Override
+        public SettingsSaveResult save(SettingsUpdateRequest req) {
+            User u = AppState.get().getCurrentUser();
+            if (u == null || u.getId() == null || !u.getId().equals(req.userId)) {
+                return SettingsSaveResult.fail("로그인 정보가 없어요. 다시 로그인해 주세요.");
+            }
+
+            // ---- local apply ----
+            UserReflect.set(u, req.nickname, "setNickname", "setNick", "setName");
+            UserReflect.set(u, req.email, "setEmail", "setMail");
+
+            if (req.birth == null) {
+                UserReflect.set(u, null, "setBirth", "setBirthDate", "setBirthday");
+            } else {
+                boolean ok = UserReflect.setIfMatches(u, req.birth, "setBirth", "setBirthDate", "setBirthday");
+                if (!ok) {
+                    UserReflect.set(u, req.birth.toString(), "setBirth", "setBirthDate", "setBirthday");
+                }
+            }
+
+            UserReflect.set(u, req.platform, "setMainPlatform", "setPlatform", "setPrimaryPlatform");
+
+            UserReflect.set(u, new ArrayList<>(req.interestNames()), "setInterests", "setInterestList", "setInterestNames");
+
+            return SettingsSaveResult.ok(u);
+        }
+    }
+
+    public static final class SettingsUpdateRequest {
+        public final String userId;
+        public final String nickname;
+        public final String email;         // nullable
+        public final LocalDate birth;      // nullable
+        public final String platform;      // nullable/empty 허용
+        public final List<Long> interestIds; // DB user_interest용
+        public final String currentPassword; // nullable
+        public final String newPassword;     // nullable
+
+        private final List<String> interestNames;
+
+        public SettingsUpdateRequest(
+                String userId,
+                String nickname,
+                String email,
+                LocalDate birth,
+                String platform,
+                List<Long> interestIds,
+                String currentPassword,
+                String newPassword
+        ) {
+            this.userId = userId;
+            this.nickname = nickname;
+            this.email = email;
+            this.birth = birth;
+            this.platform = platform;
+            this.interestIds = (interestIds == null) ? List.of() : new ArrayList<>(interestIds);
+            this.currentPassword = currentPassword;
+            this.newPassword = newPassword;
+            this.interestNames = new ArrayList<>();
+        }
+
+        public List<String> interestNames() {
+            return interestNames;
+        }
+    }
+
+    public static final class SettingsSaveResult {
+        public final boolean ok;
+        public final String message;
+        public final User updatedUser;
+
+        private SettingsSaveResult(boolean ok, String message, User updatedUser) {
+            this.ok = ok;
+            this.message = message;
+            this.updatedUser = updatedUser;
+        }
+
+        public static SettingsSaveResult ok(User u) {
+            return new SettingsSaveResult(true, null, u);
+        }
+
+        public static SettingsSaveResult fail(String msg) {
+            return new SettingsSaveResult(false, msg, null);
+        }
+    }
+
+    // =========================
+    // Reflection helper
     // =========================
     static final class UserReflect {
         static String getString(Object target, String... getters) {
@@ -593,16 +835,44 @@ public class SettingsDialog extends JDialog {
                         if (mm.getParameterCount() != 1) continue;
 
                         Class<?> p = mm.getParameterTypes()[0];
-                        if (value == null) { mm.invoke(target, new Object[]{null}); return; }
+                        if (value == null) {
+                            mm.invoke(target, new Object[]{null});
+                            return;
+                        }
 
-                        if (p == String.class) { mm.invoke(target, value.toString()); return; }
-                        if (List.class.isAssignableFrom(p) && value instanceof List<?>) { mm.invoke(target, value); return; }
-
-                        mm.invoke(target, value);
-                        return;
+                        if (p == String.class) {
+                            mm.invoke(target, value.toString());
+                            return;
+                        }
+                        if (List.class.isAssignableFrom(p) && value instanceof List<?>) {
+                            mm.invoke(target, value);
+                            return;
+                        }
+                        if (p.isAssignableFrom(value.getClass())) {
+                            mm.invoke(target, value);
+                            return;
+                        }
                     }
                 } catch (Exception ignore) {}
             }
+        }
+
+        static boolean setIfMatches(Object target, Object value, String... setters) {
+            if (target == null || value == null) return false;
+            for (String m : setters) {
+                try {
+                    for (var mm : target.getClass().getMethods()) {
+                        if (!mm.getName().equals(m)) continue;
+                        if (mm.getParameterCount() != 1) continue;
+                        Class<?> p = mm.getParameterTypes()[0];
+                        if (p.isAssignableFrom(value.getClass())) {
+                            mm.invoke(target, value);
+                            return true;
+                        }
+                    }
+                } catch (Exception ignore) {}
+            }
+            return false;
         }
     }
 }
