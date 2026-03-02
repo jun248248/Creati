@@ -43,6 +43,7 @@ public class MainFrame extends JFrame {
 	private final Navigator navigator = new Navigator(this);
 	private final JPanel contentCards = new JPanel(cardLayout);
 	private String currentCardKey = CARD_HOME;
+	private JLabel headerNickLabel;
 
 	private final MainSearchBar searchBar = new MainSearchBar();
 	private ChallengeView challengeView;
@@ -111,11 +112,6 @@ public class MainFrame extends JFrame {
 
 		setContentPane(buildRoot());
 		showCard(CARD_HOME);
-	}
-
-	public MainFrame(String nickname) {
-		
-		this();
 	}
 
 	private String makeSettingsIcon() {
@@ -231,9 +227,9 @@ public class MainFrame extends JFrame {
 
 		CircleAvatar avatar = new CircleAvatar(profileImage);
 
-		JLabel nick = new JLabel(nickname);
-		nick.setFont(UITheme.BODY_MED);
-		nick.setForeground(UITheme.TEXT);
+		headerNickLabel = new JLabel(nickname);
+		headerNickLabel.setFont(UITheme.BODY_MED);
+		headerNickLabel.setForeground(UITheme.TEXT);
 
 		JButton settingsBtn = new JButton(makeSettingsIcon());
 		settingsBtn.setToolTipText("설정");
@@ -245,11 +241,11 @@ public class MainFrame extends JFrame {
 		settingsBtn.setContentAreaFilled(false);
 		settingsBtn.setOpaque(false);
 		settingsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		settingsBtn.addActionListener(e -> JOptionPane.showMessageDialog(this, "TODO: 설정 화면 연결"));
+		settingsBtn.addActionListener(e -> openSettings());
 
 		profileRow.add(avatar);
 		profileRow.add(Box.createHorizontalStrut(10));
-		profileRow.add(nick);
+		profileRow.add(headerNickLabel);
 		profileRow.add(Box.createHorizontalStrut(10));
 		profileRow.add(settingsBtn);
 
@@ -566,7 +562,30 @@ public class MainFrame extends JFrame {
 		});
 		showCard(CARD_WRITE);
 	}
+	
+	public void openSettings() {
+	    SettingsDialog d = new SettingsDialog(this);
+	    d.setVisible(true);
+	}
 
+
+	public void refreshHeaderUser() {
+	    com.creati.model.User user = AppState.get().getCurrentUser();
+	    if (user == null) return;
+
+	    String newNick = (user.getNickname() == null || user.getNickname().isBlank())
+	            ? "사용자"
+	            : user.getNickname();
+
+	    SwingUtilities.invokeLater(() -> {
+	        if (headerNickLabel != null) {
+	            headerNickLabel.setText(newNick);
+	            headerNickLabel.revalidate();
+	            headerNickLabel.repaint();
+	        }
+	    });
+	}
+	    
 	public void navigateToAi() {
 		showCard(CARD_AI);
 	}
@@ -628,7 +647,10 @@ public class MainFrame extends JFrame {
 	}
 
 	public static void main(String[] args) {
-		SwingUtilities.invokeLater(() -> new MainFrame("지현").setVisible(true));
+	    SwingUtilities.invokeLater(() -> {
+	        MainFrame f = new MainFrame();
+	        f.setVisible(true);
+	    });
 	}
 	private void deleteSelectedLog() {
 	    String id = AppState.get().getSelectedLogId();

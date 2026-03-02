@@ -2,6 +2,7 @@ package com.creati.ui.main;
 
 import com.creati.model.LogPost;
 import com.creati.model.LogStatus;
+import com.creati.model.User;
 import com.creati.ui.components.Chip;
 import com.creati.ui.components.RoundedButton;
 import com.creati.util.FontKit;
@@ -721,7 +722,6 @@ public class LogDetailView extends JPanel {
 		if (text.isBlank())
 			return;
 
-		String author = "나"; // DB(TODO): current user nickname
 		Services.SOCIAL.addComment(boundPost.id, text);
 		commentField.setText("");
 
@@ -757,12 +757,18 @@ public class LogDetailView extends JPanel {
 		} else {
 			DateTimeFormatter df = DateTimeFormatter.ofPattern("MM.dd HH:mm");
 
-			for (SocialStore.Comment c : list) {
-				boolean isAuthor = (postAuthor != null && c.author != null && c.author.equals(postAuthor));
+			User currentUser = AppState.get().getCurrentUser();
 
+			for (SocialStore.Comment c : list) {
+				boolean isMine = currentUser != null && c.author != null && c.author.equals(currentUser.getNickname());
+				System.out.println(c.author);
 				JPanel box = new JPanel();
 				box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
-				box.setBackground(isAuthor ? UITheme.COMMENT_AUTHOR_BG : UITheme.SURFACE_TINT);
+				if (isMine) {
+				    box.setBackground(UITheme.COMMENT_AUTHOR_BG);   // 내 댓글 스타일
+				} else {
+				    box.setBackground(UITheme.SURFACE_TINT);        // 기본 댓글
+				}
 				box.setBorder(BorderFactory.createCompoundBorder(
 						BorderFactory.createLineBorder(UITheme.RGB_235_235_242), new EmptyBorder(10, 12, 10, 12)));
 				box.setAlignmentX(LEFT_ALIGNMENT);
@@ -777,7 +783,7 @@ public class LogDetailView extends JPanel {
 				head.setAlignmentX(LEFT_ALIGNMENT);
 				headRow.add(head);
 
-				if (isAuthor) {
+				if (isMine) {
 					Chip badge = new Chip();
 					configureDetailChip(badge);
 					badge.setFont(FontKit.medium(11.5f));
