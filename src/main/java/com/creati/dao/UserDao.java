@@ -1,6 +1,7 @@
 package com.creati.dao;
 
 import com.creati.dto.UserDto;
+import com.creati.model.User;
 import com.creati.database.DBConnectionMgr;
 
 import java.sql.Connection;
@@ -176,5 +177,115 @@ public class UserDao {
         return false;
     }
     
+    /*
+     * 회원정보 수정
+     */
+    public boolean updateUser(User user) {
+
+        String sql = "UPDATE users SET u_name=?, u_birth=?, u_email=?, u_platform=? WHERE u_id=?";
+
+        try (Connection conn = pool.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, user.getNickname());
+
+            // 🔥 LocalDate → SQL Date
+            if (user.getBirth() != null) {
+                pstmt.setDate(2, java.sql.Date.valueOf(user.getBirth()));
+            } else {
+                pstmt.setNull(2, java.sql.Types.DATE);
+            }
+
+            pstmt.setString(3, user.getEmail());
+            pstmt.setString(4, user.getPlatform());
+            pstmt.setString(5, user.getId());
+
+            return pstmt.executeUpdate() > 0;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
     
+    /*
+     * 유저 관심분야 수정
+     */
+    public boolean updateUserInterests(String userId, List<Long> interestIds) {
+
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = pool.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. 기존 삭제
+            String deleteSql = "DELETE FROM user_interest WHERE u_id=?";
+            pstmt = conn.prepareStatement(deleteSql);
+            pstmt.setString(1, userId);
+            pstmt.executeUpdate();
+
+            // 2. 새로 insert
+            String insertSql = "INSERT INTO user_interest (u_id, i_id) VALUES (?, ?)";
+            pstmt = conn.prepareStatement(insertSql);
+
+            for (Long id : interestIds) {
+                pstmt.setString(1, userId);
+                pstmt.setLong(2, id);
+                pstmt.addBatch();
+            }
+
+            pstmt.executeBatch();
+            conn.commit();
+
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            try { conn.rollback(); } catch (Exception ignored) {}
+        } finally {
+            try { conn.setAutoCommit(true); } catch (Exception ignored) {}
+            pool.freeConnection(conn, pstmt);
+        }
+
+        return false;
+    }
+    
+    /*
+     * 비밀번호 변경
+     */
+    public boolean updatePassword(String userId, String currentPw, String newPw) {
+
+    	String checkSql = "SELECT u_pw_hash FROM users WHERE u_id=?";
+    	String updateSql = "UPDATE users SET u_pw_hash=? WHERE u_id=?";
+
+        try (Connection conn = pool.getConnection();
+             PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+
+            checkStmt.setString(1, userId);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (rs.next()) {
+                String dbPw = rs.getString("u_pw_hash");
+
+                if (!dbPw.equals(currentPw)) {
+                    return false; // 현재 비밀번호 불일치
+                }
+            }
+
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                updateStmt.setString(1, newPw);
+                updateStmt.setString(2, userId);
+
+                return updateStmt.executeUpdate() > 0;
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
 }

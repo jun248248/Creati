@@ -5,107 +5,104 @@ import com.creati.dto.UserDto;
 import com.creati.model.User;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
 
 public class AuthService {
 
-	private UserDao userDao = new UserDao();
-	
-	private static final AuthService INSTANCE = new AuthService();
+    private final UserDao userDao = new UserDao();
 
-	public static AuthService getInstance() {
-		return INSTANCE;
-	}
+    private static final AuthService INSTANCE = new AuthService();
 
-	// DB
-	private final Map<String, User> users = new HashMap<>();
+    public static AuthService getInstance() {
+        return INSTANCE;
+    }
 
-	private static final String[] PROFILE_RES = new String[] { "/images/profile/profile_red.png",
-			"/images/profile/profile_orange.png", "/images/profile/profile_yellow.png",
-			"/images/profile/profile_green.png", "/images/profile/profile_blue.png",
-			"/images/profile/profile_purple.png", "/images/profile/profile_gray.png" };
+    private AuthService() {}
 
-	private final Random random = new Random();
+    // =========================
+    // 로그인
+    // =========================
+    public User login(String id, String pw) {
 
-	private AuthService() {
-		
-		ensureDefaultUser();
-	}
+        UserDto dto = userDao.login(id, pw);
 
-	private void ensureDefaultUser() {
-		if (!users.containsKey("aaa")) {
-			String profile = pickRandomProfile();
-			users.put("aaa", new User("aaa", "1234", "오늘도한걸음", profile));
-		}
-	}
+        if (dto == null) return null;
 
-	private String pickRandomProfile() {
-	    if (PROFILE_RES == null || PROFILE_RES.length == 0) {
-	        return "/images/profile/default_profile.png";
-	    }
-	    return PROFILE_RES[random.nextInt(PROFILE_RES.length)];
-	}
+        User user = new User();
 
-	public User login(String id, String pw) {
+        user.setId(dto.getId());
+        user.setPassword(pw); // 나중에 암호화 적용 예정
+        user.setNickname(dto.getName());
+        user.setPhone(dto.getPhone());
+        user.setEmail(dto.getEmail());
+        user.setBirth(dto.getBirth());
+        user.setPlatform(dto.getPlatform());
 
-	    UserDto dto = userDao.login(id, pw);
+        // TODO: 관심분야 조회해서 넣기
+        // user.setInterests(userDao.getUserInterests(id));
 
-	    if (dto == null) {
-	        return null;
-	    }
+        return user;
+    }
 
-	    return new User(
-	            dto.getId(),
-	            pw,                     
-	            dto.getName(),           
-	            null
-	    );
-	}
+    // =========================
+    // 아이디 중복 확인
+    // =========================
+    public boolean isIdAvailable(String id) {
+        if (id == null || id.trim().isEmpty()) return false;
+        return !userDao.isDuplicateId(id);
+    }
 
-	public boolean isDuplicateId(String id) {
-		return id != null && users.containsKey(id);
-	}
+    // =========================
+    // 회원가입
+    // =========================
+    public boolean signup(
+            String id,
+            String pw,
+            String nickname,
+            String phone,
+            String email,
+            LocalDate birth,
+            String platform,
+            List<Long> interestIds) {
 
-	public boolean signup(
-	        String id,
-	        String pw,
-	        String nickname,
-	        String phone,
-	        String email,
-	        LocalDate birth,
-	        String platform,
-	        List<Long> interestIds) {
+        if (id == null || pw == null || nickname == null) return false;
 
-	    if (id == null || pw == null || nickname == null)
-	        return false;
+        id = id.trim();
+        pw = pw.trim();
+        nickname = nickname.trim();
 
-	    id = id.trim();
-	    pw = pw.trim();
-	    nickname = nickname.trim();
+        if (id.isEmpty() || pw.isEmpty() || nickname.isEmpty()) return false;
 
-	    if (id.isEmpty() || pw.isEmpty() || nickname.isEmpty())
-	        return false;
+        // 중복 체크
+        if (userDao.isDuplicateId(id)) return false;
 
-	    // 🔥 DB 중복 체크
-	    if (userDao.isDuplicateId(id)) {
-	        return false;
-	    }
+        UserDto dto = new UserDto();
+        dto.setId(id);
+        dto.setPwHash(pw); // TODO: BCrypt 적용
+        dto.setName(nickname);
+        dto.setPhone(phone);
+        dto.setEmail(email);
+        dto.setBirth(birth);
+        dto.setPlatform(platform);
 
-	    // 🔥 DTO 생성
-	    UserDto dto = new UserDto();
-	    dto.setId(id);
-	    dto.setPwHash(pw); // 현재는 평문
-	    dto.setName(nickname);
-	    dto.setPhone(phone);
-	    dto.setEmail(email);
-	    dto.setBirth(birth);
-	    dto.setPlatform(platform);
+        return userDao.insertUser(dto, interestIds);
+    }
 
-	    // 🔥 DAO 호출 (트랜잭션 내부 처리됨)
-	    return userDao.insertUser(dto, interestIds);
-	}
+    // =========================
+    // 회원정보 수정
+    // =========================
+    public boolean updateUserInfo(User user, List<Long> interestIds) {
 
-	public User findUser(String id) {
-		return users.get(id);
-	}
+        boolean userUpdated = userDao.updateUser(user);
+        boolean interestUpdated = userDao.updateUserInterests(user.getId(), interestIds);
+
+        return userUpdated && interestUpdated;
+    }
+
+    // =========================
+    // 비밀번호 변경
+    // =========================
+    public boolean changePassword(String userId, String currentPw, String newPw) {
+        return userDao.updatePassword(userId, currentPw, newPw);
+    }
 }
