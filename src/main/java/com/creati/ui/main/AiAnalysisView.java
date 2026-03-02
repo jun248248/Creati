@@ -156,11 +156,19 @@ public class AiAnalysisView extends JPanel {
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         split.setBorder(null);
         split.setDividerSize(8);
-        split.setResizeWeight(0.50); 
+        split.setResizeWeight(0.70);
         split.setContinuousLayout(true);
 
         split.setLeftComponent(buildChatPanel());
         split.setRightComponent(buildRecordPanel());
+
+        // 화면에 표시될 때 divider 위치를 7:3으로 강제 적용
+        split.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0
+                    && split.isShowing()) {
+                SwingUtilities.invokeLater(() -> split.setDividerLocation(0.70));
+            }
+        });
 
         body.add(split, BorderLayout.CENTER);
         return body;
@@ -438,7 +446,6 @@ public class AiAnalysisView extends JPanel {
             return;
         }
 
-        
         if (Services.AI.isTypeAnalyzed(log.id, type)) {
             JOptionPane.showMessageDialog(this, "이 항목은 이미 분석이 저장됐어요. 다른 항목을 선택해 주세요.");
             refreshAnalyzedState();
@@ -452,15 +459,37 @@ public class AiAnalysisView extends JPanel {
         };
         pushUserMessage(userText);
 
-        
-        AiAnalysisRecord preview = Services.AI.preview(log.id, type);
-        pending.put(type, preview);
+        // 로딩 중 메시지 표시 + 버튼 비활성화
+        pushEttiMessage("분석 중이에요... 잠깐만 기다려 주세요 🤔");
+        setButtonsEnabled(false);
 
-        pushEttiMessage(preview.content);
+        // Gemini API 호출을 백그라운드 스레드에서 실행 (EDT 블로킹 방지)
+        new SwingWorker<AiAnalysisRecord, Void>() {
+            @Override
+            protected AiAnalysisRecord doInBackground() {
+                return Services.AI.preview(log.id, type);
+            }
 
-        refreshSaveButtonState();
-        refreshRecordList();
-        refreshAnalyzedState();
+            @Override
+            protected void done() {
+                try {
+                    AiAnalysisRecord preview = get();
+                    pending.put(type, preview);
+
+                    // 로딩 메시지를 실제 결과로 교체
+                    replaceLastEttiMessage(preview.content);
+
+                    refreshSaveButtonState();
+                    refreshRecordList();
+                    refreshAnalyzedState();
+                } catch (Exception ex) {
+                    replaceLastEttiMessage("분석 중 오류가 발생했어요. 다시 시도해 주세요.");
+                    ex.printStackTrace();
+                } finally {
+                    setButtonsEnabled(true);
+                }
+            }
+        }.execute();
     }
 
     private void onSave() {
@@ -757,15 +786,54 @@ public class AiAnalysisView extends JPanel {
         scrollChatToBottom();
     }
 
+    /** 마지막으로 추가된 에티 말풍선의 텍스트를 교체 (로딩→결과) */
+    private void replaceLastEttiMessage(String newText) {
+        // chatList 자식: bubble, strut, bubble, strut ... 순서
+        // 뒤에서부터 탐색해서 에티 버블(isEtti=true)을 찾아 교체
+        Component[] comps = chatList.getComponents();
+        for (int i = comps.length - 1; i >= 0; i--) {
+            if (comps[i] instanceof JPanel panel
+                    && panel.getClientProperty("isEtti") != null
+                    && (Boolean) panel.getClientProperty("isEtti")) {
+                int idx = i;
+                SwingUtilities.invokeLater(() -> {
+                    chatList.remove(idx);
+                    // strut도 같이 제거 (idx가 strut이면 버블은 idx-1)
+                    JComponent newBubble = messageBubble(newText, true);
+                    chatList.add(newBubble, idx);
+                    chatList.revalidate();
+                    chatList.repaint();
+                    scrollChatToBottom();
+                });
+                return;
+            }
+        }
+        // 못 찾으면 그냥 추가
+        SwingUtilities.invokeLater(() -> pushEttiMessage(newText));
+    }
+
+    /** 분석 버튼들 활성/비활성 토글 */
+    private void setButtonsEnabled(boolean enabled) {
+        btnCause.setEnabled(enabled);
+        btnRetro.setEnabled(enabled);
+        btnRetry.setEnabled(enabled);
+        btnSave.setEnabled(enabled);
+        send.setEnabled(enabled);
+    }
+
     private JComponent messageBubble(String text, boolean isEtti) {
         JPanel wrap = new JPanel(new BorderLayout());
         wrap.setOpaque(false);
+        // chatList(BoxLayout Y축)에서 가로를 꽉 채워야 EAST 정렬이 동작
+        wrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+        wrap.putClientProperty("isEtti", isEtti);  // replaceLastEttiMessage 식별용
 
         RoundedTextBubble bubble = new RoundedTextBubble(
                 text,
                 isEtti ? UITheme.YELLOW_200 : UITheme.ACCENT_LAVENDER_BG,
                 isEtti ? UITheme.RGB_80_80_90 : UITheme.TEXT,
-                440 
+                440
         );
 
         if (isEtti) {
@@ -826,10 +894,14 @@ public class AiAnalysisView extends JPanel {
             area.setBorder(new EmptyBorder(10, 12, 10, 12));
 
             
-            Dimension pref = area.getPreferredSize();
-            setMaximumSize(new Dimension(maxWidth, pref.height));
-            setPreferredSize(new Dimension(maxWidth, pref.height));
-add(area, BorderLayout.CENTER);
+            // maxWidth 기준으로 줄바꿈 후 실제 높이 계산
+            int innerWidth = maxWidth - 24;
+            area.setSize(new Dimension(innerWidth, Short.MAX_VALUE));
+            int calcHeight = area.getPreferredSize().height;
+
+            setMaximumSize(new Dimension(maxWidth, calcHeight));
+            setPreferredSize(new Dimension(maxWidth, calcHeight));
+            add(area, BorderLayout.CENTER);
         }
 
         @Override

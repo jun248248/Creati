@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
+import com.creati.model.User;
+
 /**
  * SocialService - UI에서 직접 Store를 만지지 않게 하는 "접점"
  *
@@ -30,7 +32,9 @@ public class SocialService {
      * DB(TODO): 로그인/세션 붙이면 실제 userId로 교체
      */
     private String currentUserId() {
-        return "나";
+        User user = AppState.get().getCurrentUser();
+        if (user == null) return null;   // 또는 예외 처리
+        return user.getId();
     }
 
     public void toggleReaction(String postId, SocialStore.ReactionType type) {

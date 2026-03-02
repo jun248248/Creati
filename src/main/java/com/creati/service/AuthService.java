@@ -4,6 +4,7 @@ import com.creati.dao.UserDao;
 import com.creati.dto.UserDto;
 import com.creati.model.User;
 
+import java.time.LocalDate;
 import java.util.*;
 
 public class AuthService {
@@ -65,21 +66,43 @@ public class AuthService {
 		return id != null && users.containsKey(id);
 	}
 
-	public boolean signup(String id, String pw, String nickname) {
-		if (id == null || pw == null || nickname == null)
-			return false;
-		id = id.trim();
-		pw = pw.trim();
-		nickname = nickname.trim();
+	public boolean signup(
+	        String id,
+	        String pw,
+	        String nickname,
+	        String phone,
+	        String email,
+	        LocalDate birth,
+	        String platform,
+	        List<Long> interestIds) {
 
-		if (id.isEmpty() || pw.isEmpty() || nickname.isEmpty())
-			return false;
-		if (users.containsKey(id))
-			return false;
+	    if (id == null || pw == null || nickname == null)
+	        return false;
 
-		String profile = pickRandomProfile();
-		users.put(id, new User(id, pw, nickname, profile));
-		return true;
+	    id = id.trim();
+	    pw = pw.trim();
+	    nickname = nickname.trim();
+
+	    if (id.isEmpty() || pw.isEmpty() || nickname.isEmpty())
+	        return false;
+
+	    // 🔥 DB 중복 체크
+	    if (userDao.isDuplicateId(id)) {
+	        return false;
+	    }
+
+	    // 🔥 DTO 생성
+	    UserDto dto = new UserDto();
+	    dto.setId(id);
+	    dto.setPwHash(pw); // 현재는 평문
+	    dto.setName(nickname);
+	    dto.setPhone(phone);
+	    dto.setEmail(email);
+	    dto.setBirth(birth);
+	    dto.setPlatform(platform);
+
+	    // 🔥 DAO 호출 (트랜잭션 내부 처리됨)
+	    return userDao.insertUser(dto, interestIds);
 	}
 
 	public User findUser(String id) {
