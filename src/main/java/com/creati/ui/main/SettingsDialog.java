@@ -4,6 +4,7 @@ import com.creati.model.User;
 import com.creati.ui.components.RoundedButton;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.service.AuthService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -12,6 +13,7 @@ import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.time.LocalDate;
 
 /**
  * 설정 다이얼로그
@@ -297,6 +299,7 @@ public class SettingsDialog extends JDialog {
     }
 
     private void onSave() {
+
         User u = AppState.get().getCurrentUser();
         if (u == null) {
             JOptionPane.showMessageDialog(this, "로그인 정보가 없어요. 다시 로그인해 주세요.");
@@ -305,29 +308,37 @@ public class SettingsDialog extends JDialog {
 
         // ---- profile validate ----
         String nickname = tfNickname.getText().trim();
+        String birthStr = tfBirth.getText().trim();
+        String email = tfEmail.getText().trim();
+        String platform = Objects.toString(cbPlatform.getSelectedItem(), "");
+
         if (nickname.isBlank()) {
             JOptionPane.showMessageDialog(this, "닉네임은 비워둘 수 없어요.");
             return;
         }
+
         if (selectedInterests.size() > 3) {
             JOptionPane.showMessageDialog(this, "관심분야는 최대 3개까지 선택할 수 있어요.");
             return;
         }
-        if (!tfBirth.getText().trim().isEmpty() && !tfBirth.getText().trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
+
+        if (!birthStr.isEmpty() && !birthStr.matches("\\d{4}-\\d{2}-\\d{2}")) {
             JOptionPane.showMessageDialog(this, "생년월일 형식이 올바르지 않아요. 예) 2001-03-15");
             return;
         }
-        if (!tfEmail.getText().trim().isEmpty() && !tfEmail.getText().trim().contains("@")) {
+
+        if (!email.isEmpty() && !email.contains("@")) {
             JOptionPane.showMessageDialog(this, "이메일 형식이 올바르지 않아요.");
             return;
         }
 
-        // ---- password validate (optional) ----
+        // ---- password validate ----
         String cur = new String(pfCurrent.getPassword()).trim();
         String nw = new String(pfNew.getPassword()).trim();
         String cf = new String(pfConfirm.getPassword()).trim();
 
         boolean wantsPwChange = !(cur.isBlank() && nw.isBlank() && cf.isBlank());
+
         if (wantsPwChange) {
             if (cur.isBlank() || nw.isBlank() || cf.isBlank()) {
                 JOptionPane.showMessageDialog(this, "비밀번호 변경을 하려면 3개 항목을 모두 입력해 주세요.");
@@ -343,30 +354,75 @@ public class SettingsDialog extends JDialog {
             }
         }
 
-        // ---- apply to user (local) ----
-        UserReflect.set(u, nickname, "setNickname", "setNick", "setName");
-        UserReflect.set(u, tfBirth.getText().trim(), "setBirth", "setBirthDate", "setBirthday");
-        UserReflect.set(u, tfEmail.getText().trim(), "setEmail", "setMail");
-        UserReflect.set(u, Objects.toString(cbPlatform.getSelectedItem(), ""), "setMainPlatform", "setPlatform", "setPrimaryPlatform");
+        // =========================
+        // 🔥 User 객체 업데이트
+        // =========================
 
-        // 관심분야 (max 3)
-        // DB(TODO): user_interest 같은 매핑테이블 upsert
-        UserReflect.set(u, new ArrayList<>(selectedInterests), "setInterests", "setInterestList", "setInterestNames");
+        u.setNickname(nickname);
 
-        // 비밀번호 변경
-        if (wantsPwChange) {
-            // DB(TODO): 현재 비밀번호 검증 + 변경 처리
-            // 예: userDao.updatePassword(userId, cur, nw);
+        if (!birthStr.isEmpty()) {
+            u.setBirth(LocalDate.parse(birthStr));
+        } else {
+            u.setBirth(null);
         }
+
+        u.setEmail(email);
+        u.setPlatform(platform);
+        u.setInterests(new ArrayList<>(selectedInterests));
+
+        // =========================
+        // 🔥 DB 저장
+        // =========================
+
+        AuthService auth = AuthService.getInstance();
+
+        List<Long> interestIds = convertInterestToIds(selectedInterests);
+
+        boolean ok = auth.updateUserInfo(u, interestIds);
+
+        if (!ok) {
+            JOptionPane.showMessageDialog(this, "회원정보 수정 실패");
+            return;
+        }
+
+        // =========================
+        // 🔥 비밀번호 변경
+        // =========================
+
+        if (wantsPwChange) {
+            boolean pwChanged = auth.changePassword(u.getId(), cur, nw);
+
+            if (!pwChanged) {
+                JOptionPane.showMessageDialog(this, "현재 비밀번호가 틀렸습니다.");
+                return;
+            }
+        }
+
+        // =========================
+        // UI 반영
+        // =========================
 
         AppState.get().setCurrentUser(u);
         parent.refreshHeaderUser();
 
-        JOptionPane.showMessageDialog(this,
-                wantsPwChange
-                        ? "저장됐어요! (비밀번호 변경/DB 연동은 TODO)"
-                        : "저장됐어요! (DB 연동은 TODO)");
+        JOptionPane.showMessageDialog(this, "저장되었습니다.");
         dispose();
+    }
+    
+    private List<Long> convertInterestToIds(List<String> list) {
+
+        List<Long> ids = new ArrayList<>();
+
+        for (String s : list) {
+            switch (s) {
+                case "영상": ids.add(1L); break;
+                case "이미지": ids.add(2L); break;
+                case "글": ids.add(3L); break;
+                case "음악": ids.add(4L); break;
+            }
+        }
+
+        return ids;
     }
 
     // =========================
@@ -374,23 +430,27 @@ public class SettingsDialog extends JDialog {
     // =========================
 
     private void loadFromAppState() {
+
         User u = AppState.get().getCurrentUser();
         if (u == null) return;
 
         tfUserId.setText(safe(u.getId()));
-        tfPhone.setText(UserReflect.getString(u, "getPhone", "getPhoneNumber", "getMobile"));
+        tfPhone.setText(safe(u.getPhone()));
+        tfNickname.setText(nonBlankOr(u.getNickname(), ""));
+        tfEmail.setText(safe(u.getEmail()));
 
-        tfNickname.setText(nonBlankOr(UserReflect.getString(u, "getNickname", "getNick", "getName"), ""));
-        tfBirth.setText(UserReflect.getString(u, "getBirth", "getBirthDate", "getBirthday"));
-        tfEmail.setText(UserReflect.getString(u, "getEmail", "getMail"));
+        if (u.getBirth() != null) {
+            tfBirth.setText(u.getBirth().toString());
+        }
 
-        String platform = UserReflect.getString(u, "getMainPlatform", "getPlatform", "getPrimaryPlatform");
-        if (!platform.isBlank()) cbPlatform.setSelectedItem(platform);
+        if (u.getPlatform() != null && !u.getPlatform().isBlank()) {
+            cbPlatform.setSelectedItem(u.getPlatform());
+        }
 
-        List<String> interests = UserReflect.getStringList(u, "getInterests", "getInterestList", "getInterestNames");
         selectedInterests.clear();
-        if (interests != null) {
-            for (String s : interests) {
+
+        if (u.getInterests() != null) {
+            for (String s : u.getInterests()) {
                 if (s == null) continue;
                 String t = s.trim();
                 if (!t.isEmpty() && selectedInterests.size() < 3 && !selectedInterests.contains(t)) {
@@ -398,6 +458,7 @@ public class SettingsDialog extends JDialog {
                 }
             }
         }
+
         redrawInterestChips();
     }
 
@@ -550,59 +611,6 @@ public class SettingsDialog extends JDialog {
 
             add(t);
             add(x);
-        }
-    }
-
-    // =========================
-    // Reflection helper 
-    // =========================
-    static final class UserReflect {
-        static String getString(Object target, String... getters) {
-            if (target == null) return "";
-            for (String m : getters) {
-                try {
-                    Object v = target.getClass().getMethod(m).invoke(target);
-                    if (v == null) continue;
-                    return v.toString().trim();
-                } catch (Exception ignore) {}
-            }
-            return "";
-        }
-
-        static List<String> getStringList(Object target, String... getters) {
-            if (target == null) return null;
-            for (String m : getters) {
-                try {
-                    Object v = target.getClass().getMethod(m).invoke(target);
-                    if (v instanceof List<?> list) {
-                        List<String> out = new ArrayList<>();
-                        for (Object o : list) if (o != null) out.add(o.toString());
-                        return out;
-                    }
-                } catch (Exception ignore) {}
-            }
-            return null;
-        }
-
-        static void set(Object target, Object value, String... setters) {
-            if (target == null) return;
-            for (String m : setters) {
-                try {
-                    for (var mm : target.getClass().getMethods()) {
-                        if (!mm.getName().equals(m)) continue;
-                        if (mm.getParameterCount() != 1) continue;
-
-                        Class<?> p = mm.getParameterTypes()[0];
-                        if (value == null) { mm.invoke(target, new Object[]{null}); return; }
-
-                        if (p == String.class) { mm.invoke(target, value.toString()); return; }
-                        if (List.class.isAssignableFrom(p) && value instanceof List<?>) { mm.invoke(target, value); return; }
-
-                        mm.invoke(target, value);
-                        return;
-                    }
-                } catch (Exception ignore) {}
-            }
         }
     }
 }

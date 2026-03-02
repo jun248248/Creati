@@ -199,6 +199,7 @@ public class SignupFrame extends JFrame {
 
 		JPanel idRow = rowX(idField, 8, dupBtn);
 		addRow(form, r, idLabel, idRow);
+		dupBtn.addActionListener(e -> checkDuplicateId());
 
 		JLabel pwLabel = label("비밀번호", LABEL_WIDTH);
 		pwField = new JPasswordField();
@@ -542,4 +543,25 @@ public class SignupFrame extends JFrame {
 			days[i] = String.valueOf(i);
 		return days;
 	}
+	
+	private void checkDuplicateId() {
+
+	    String id = idField.getText().trim();
+
+	    if (id.isEmpty()) {
+	        toast("아이디를 입력해주세요.");
+	        return;
+	    }
+
+	    AuthService auth = AuthService.getInstance();
+
+	    boolean available = auth.isIdAvailable(id);
+
+	    if (available) {
+	        JOptionPane.showMessageDialog(this, "사용 가능한 아이디입니다.");
+	    } else {
+	        JOptionPane.showMessageDialog(this, "이미 사용중인 아이디입니다.");
+	    }
+	}
+	
 }
