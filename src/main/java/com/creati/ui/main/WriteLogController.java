@@ -59,54 +59,72 @@ public class WriteLogController {
             JOptionPane.showMessageDialog(view, "로그인 정보가 없어서 저장할 수 없어요.");
             return;
         }
-        
+
         LogDto dto = toLogDto(d, userId);
         if (dto == null) return;
-        
-        long newId = logDao.insertLog(dto);
-        if (newId <= 0) {
-            JOptionPane.showMessageDialog(view, "저장 실패!");
-            return;
-        }
-        
-        try {
-            // 4번째 사진: 다음 조정 포인트 -> log_adjustment_point
-            java.util.List<String> adjust = new java.util.ArrayList<>();
-            if (d.nextAdjustPoints != null) adjust.addAll(d.nextAdjustPoints);
-            if (d.nextAdjustOther != null && !d.nextAdjustOther.trim().isEmpty()) adjust.add(d.nextAdjustOther.trim());
-            logDao.insertAdjustmentPoints(newId, adjust);
 
-            // 결과 인식에 따라:
-            // 만족/괜찮 -> 2번째(잘된 부분) -> log_good_point
-            // 조금/많이 아쉽 -> 3번째(영향 요인) -> log_influence_factor
-            if (isPositiveReaction(d.mood)) {
-                java.util.List<String> good = new java.util.ArrayList<>();
-                if (d.goodPoints != null) good.addAll(d.goodPoints);
-                if (d.goodOther != null && !d.goodOther.trim().isEmpty()) good.add(d.goodOther.trim());
-                logDao.insertGoodPoints(newId, good);
-            } else {
-                java.util.List<String> factors = new java.util.ArrayList<>();
-                if (d.influenceFactors != null) factors.addAll(d.influenceFactors);
-                if (d.influenceOther != null && !d.influenceOther.trim().isEmpty()) factors.add(d.influenceOther.trim());
-                logDao.insertInfluenceFactors(newId, factors);
+        boolean isEdit = (d.id != null && !d.id.isBlank());
+        long logId;
+
+        if (isEdit) {
+            // ✅ 수정: UPDATE
+            try {
+                logId = Long.parseLong(d.id);
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(view, "수정 ID가 올바르지 않아요: " + d.id);
+                return;
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(view, "부가 항목 저장 실패: " + e.getMessage());
-            // 정책: 여기서 return 할지 / 그냥 진행할지 선택
-            // return;
+            dto.setId(logId); // ⭐ LogDto에 id 필드/세터가 있어야 함
+
+            boolean ok = logDao.updateLogWithExtras(dto, d); // ⭐ LogDao에 추가할 메서드(아래 2번)
+            if (!ok) {
+                JOptionPane.showMessageDialog(view, "수정 실패!");
+                return;
+            }
+
+        } else {
+            // ✅ 신규: INSERT
+            long newId = logDao.insertLog(dto);
+            if (newId <= 0) {
+                JOptionPane.showMessageDialog(view, "저장 실패!");
+                return;
+            }
+            logId = newId;
+            d.id = String.valueOf(newId);
+
+            try {
+                // 다음 조정 포인트
+                java.util.List<String> adjust = new java.util.ArrayList<>();
+                if (d.nextAdjustPoints != null) adjust.addAll(d.nextAdjustPoints);
+                if (d.nextAdjustOther != null && !d.nextAdjustOther.trim().isEmpty()) adjust.add(d.nextAdjustOther.trim());
+                logDao.insertAdjustmentPoints(newId, adjust);
+
+                if (isPositiveReaction(d.mood)) {
+                    java.util.List<String> good = new java.util.ArrayList<>();
+                    if (d.goodPoints != null) good.addAll(d.goodPoints);
+                    if (d.goodOther != null && !d.goodOther.trim().isEmpty()) good.add(d.goodOther.trim());
+                    logDao.insertGoodPoints(newId, good);
+                } else {
+                    java.util.List<String> factors = new java.util.ArrayList<>();
+                    if (d.influenceFactors != null) factors.addAll(d.influenceFactors);
+                    if (d.influenceOther != null && !d.influenceOther.trim().isEmpty()) factors.add(d.influenceOther.trim());
+                    logDao.insertInfluenceFactors(newId, factors);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(view, "부가 항목 저장 실패: " + e.getMessage());
+            }
         }
-        
-        d.id = String.valueOf(newId);
-        
+
+        // 공통 후처리
         Services.DRAFTS.upsert(d);
         LogPost saved = view.toLogPost(d);
         Services.LOGS.upsert(saved);
         AppState.get().setSelectedLogId(saved.id);
-        
+
         view.clearDirty();
-        
         view.handleSubmitResult(saved);
     }
 

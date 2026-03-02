@@ -1258,25 +1258,34 @@ private boolean validateStep(String key) {
 
 	
 
-void handleSubmitResult(LogPost saved) {
-	JOptionPane.showMessageDialog(this, editMode ? "수정 완료!" : "저장 완료!");
-	if (editMode) {
-		editMode = false;
+	void handleSubmitResult(LogPost saved) {
+	    JOptionPane.showMessageDialog(this, editMode ? "수정 완료!" : "저장 완료!");
 
-		if (topTitleLabel != null)
-			topTitleLabel.setText("새 성장 로그 작성");
-		if (draftsBtn != null)
-			draftsBtn.setVisible(true);
-		if (draftSaveBtn != null)
-			draftSaveBtn.setVisible(true);
+	    if (editMode) {
+	        editMode = false;
 
-		if (onEditSaved != null)
-			onEditSaved.accept(saved);
-		return;
+	        if (topTitleLabel != null)
+	            topTitleLabel.setText("새 성장 로그 작성");
+	        if (draftsBtn != null)
+	            draftsBtn.setVisible(true);
+	        if (draftSaveBtn != null)
+	            draftSaveBtn.setVisible(true);
+
+	        // ✅ 1) 수정 후 상세 화면/콜백 처리
+	        if (onEditSaved != null)
+	            onEditSaved.accept(saved);
+
+	        // ✅ 2) 수정 후에도 목록/커뮤니티 갱신 콜백 실행
+	        if (onRegistered != null)
+	            onRegistered.run();
+
+	        return;
+	    }
+
+	    // 신규 저장
+	    if (onRegistered != null)
+	        onRegistered.run();
 	}
-	if (onRegistered != null)
-		onRegistered.run();
-}
 
 Draft snapshotFromWizard(boolean forDraft) {
 		Draft d = current;

@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.sql.Types;
 
 import com.creati.database.DBConnectionMgr;
 import com.creati.dto.CategoryDto;
@@ -1032,4 +1033,269 @@ public class LogDao {
         }
         return "기타";
     }
+    
+    public boolean updateLogWithExtras(LogDto dto, com.creati.ui.main.WriteLogView.Draft d) {
+        if (dto == null || dto.getId() == null || dto.getId() <= 0) return false;
+        if (dto.getUserId() == null || dto.getUserId().isBlank()) return false;
+
+        Connection conn = null;
+
+        try {
+            conn = pool.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1) log 본문 UPDATE (u_id까지 걸어서 보호)
+            boolean ok = updateLogTx(conn, dto);
+            if (!ok) {
+                conn.rollback();
+                return false;
+            }
+
+            long logId = dto.getId();
+
+            // 2) 조인 테이블 교체(삭제 후 재삽입)
+            // 조정 포인트는 항상 저장
+            replaceAdjustmentPointsTx(conn, logId, d.nextAdjustPoints, d.nextAdjustOther);
+
+            // 결과 인식(만족/괜찮이면 good, 아쉬우면 influence)
+            boolean positive = isPositiveMood(d.mood);
+
+            if (positive) {
+                // good 저장, influence는 비움
+                replaceGoodPointsTx(conn, logId, d.goodPoints, d.goodOther);
+                clearInfluenceFactorsTx(conn, logId);
+            } else {
+                // influence 저장, good은 비움
+                replaceInfluenceFactorsTx(conn, logId, d.influenceFactors, d.influenceOther);
+                clearGoodPointsTx(conn, logId);
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            try { if (conn != null) conn.rollback(); } catch (Exception ignore) {}
+            e.printStackTrace();
+            return false;
+        } finally {
+            try { if (conn != null) conn.setAutoCommit(true); } catch (Exception ignore) {}
+            try { if (conn != null) pool.freeConnection(conn); } catch (Exception ignore) {}
+        }
+    }
+
+    /** mood가 "만족해요/괜찮아요"면 true */
+    private boolean isPositiveMood(String mood) {
+        if (mood == null) return false;
+        String m = mood.trim();
+        return "만족해요".equals(m) || "괜찮아요".equals(m);
+    }
+
+    /** 같은 커넥션으로 log 본문 UPDATE */
+    private boolean updateLogTx(Connection conn, LogDto dto) throws SQLException {
+        String sql = """
+            UPDATE log SET
+                l_title = ?,
+                i_id = ?,
+                c_id = ?,
+                l_result_status = ?,
+                l_is_public = ?,
+                l_is_draft = ?,
+                l_content_url = ?,
+                l_goal = ?,
+                l_result_rating = ?,
+                l_process = ?,
+                l_plan_difference = ?,
+                l_difference = ?,
+                l_reflection = ?,
+                next_plan_type = ?,
+                retry_condition = ?
+            WHERE l_id = ?
+              AND u_id = ?
+            """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, nullIfBlank(dto.getTitle()));
+
+            if (dto.getInterestId() != null && dto.getInterestId() > 0) ps.setLong(2, dto.getInterestId());
+            else ps.setNull(2, Types.BIGINT);
+
+            if (dto.getCategoryId() != null && dto.getCategoryId() > 0) ps.setLong(3, dto.getCategoryId());
+            else ps.setNull(3, Types.BIGINT);
+
+            ps.setString(4, nullIfBlank(dto.getResultStatus()));
+            ps.setBoolean(5, dto.getIsPublic() != null ? dto.getIsPublic() : true);
+            ps.setBoolean(6, dto.getIsDraft() != null ? dto.getIsDraft() : false);
+
+            ps.setString(7, nullIfBlank(dto.getContentUrl()));
+            ps.setString(8, nullIfBlank(dto.getGoal()));
+            ps.setString(9, nullIfBlank(dto.getResultRating()));
+
+            ps.setString(10, nullIfBlank(dto.getProcess()));
+            ps.setString(11, nullIfBlank(dto.getPlanDifference()));
+            ps.setString(12, nullIfBlank(dto.getDifference()));
+            ps.setString(13, nullIfBlank(dto.getReflection()));
+
+            ps.setString(14, nullIfBlank(dto.getNextPlanType()));
+            ps.setString(15, nullIfBlank(dto.getRetryCondition()));
+
+            ps.setLong(16, dto.getId());
+            ps.setString(17, dto.getUserId());
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =========================
+     * GOOD POINT (log_good_point)
+     * ========================= */
+
+    private void clearGoodPointsTx(Connection conn, long logId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM log_good_point WHERE l_id=?")) {
+            ps.setLong(1, logId);
+            ps.executeUpdate();
+        }
+    }
+
+    private void replaceGoodPointsTx(Connection conn, long logId, List<String> points, String other) throws SQLException {
+        clearGoodPointsTx(conn, logId);
+
+        List<String> all = new ArrayList<>();
+        if (points != null) all.addAll(points);
+        String o = nullIfBlank(other);
+        if (o != null) all.add(o);
+
+        if (all.isEmpty()) return;
+
+        String sql = "INSERT INTO log_good_point (l_id, gp_id) VALUES (?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (String name : all) {
+                String v = nullIfBlank(name);
+                if (v == null) continue;
+
+                long gpId = ensureGoodPointIdTx(conn, v);
+                ps.setLong(1, logId);
+                ps.setLong(2, gpId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private long ensureGoodPointIdTx(Connection conn, String gpName) throws SQLException {
+        // good_point(gp_id, gp_name)
+        Long found = selectOneLongTx(conn, "SELECT gp_id FROM good_point WHERE gp_name = ?", gpName);
+        if (found != null) return found;
+        return insertAndReturnKeyTx(conn, "INSERT INTO good_point (gp_name) VALUES (?)", gpName);
+    }
+
+    /* =========================
+     * INFLUENCE FACTOR (log_influence_factor)
+     * ========================= */
+
+    private void clearInfluenceFactorsTx(Connection conn, long logId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM log_influence_factor WHERE l_id=?")) {
+            ps.setLong(1, logId);
+            ps.executeUpdate();
+        }
+    }
+
+    private void replaceInfluenceFactorsTx(Connection conn, long logId, List<String> factors, String other) throws SQLException {
+        clearInfluenceFactorsTx(conn, logId);
+
+        List<String> all = new ArrayList<>();
+        if (factors != null) all.addAll(factors);
+        String o = nullIfBlank(other);
+        if (o != null) all.add(o);
+
+        if (all.isEmpty()) return;
+
+        String sql = "INSERT INTO log_influence_factor (l_id, if_id) VALUES (?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (String name : all) {
+                String v = nullIfBlank(name);
+                if (v == null) continue;
+
+                long ifId = ensureInfluenceFactorIdTx(conn, v);
+                ps.setLong(1, logId);
+                ps.setLong(2, ifId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private long ensureInfluenceFactorIdTx(Connection conn, String ifName) throws SQLException {
+        // influence_factor(if_id, if_name)
+        Long found = selectOneLongTx(conn, "SELECT if_id FROM influence_factor WHERE if_name = ?", ifName);
+        if (found != null) return found;
+        return insertAndReturnKeyTx(conn, "INSERT INTO influence_factor (if_name) VALUES (?)", ifName);
+    }
+
+    /* =========================
+     * ADJUSTMENT POINT (log_adjustment_point)
+     * ========================= */
+
+    private void replaceAdjustmentPointsTx(Connection conn, long logId, List<String> points, String other) throws SQLException {
+        // delete
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM log_adjustment_point WHERE l_id=?")) {
+            ps.setLong(1, logId);
+            ps.executeUpdate();
+        }
+
+        List<String> all = new ArrayList<>();
+        if (points != null) all.addAll(points);
+        String o = nullIfBlank(other);
+        if (o != null) all.add(o);
+
+        if (all.isEmpty()) return;
+
+        String sql = "INSERT INTO log_adjustment_point (l_id, ap_id) VALUES (?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (String name : all) {
+                String v = nullIfBlank(name);
+                if (v == null) continue;
+
+                long apId = ensureAdjustmentPointIdTx(conn, v);
+                ps.setLong(1, logId);
+                ps.setLong(2, apId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private long ensureAdjustmentPointIdTx(Connection conn, String apName) throws SQLException {
+        // adjustment_point(ap_id, ap_name)
+        Long found = selectOneLongTx(conn, "SELECT ap_id FROM adjustment_point WHERE ap_name = ?", apName);
+        if (found != null) return found;
+        return insertAndReturnKeyTx(conn, "INSERT INTO adjustment_point (ap_name) VALUES (?)", apName);
+    }
+
+    /* =========================
+     * 공통 helper (TX)
+     * ========================= */
+
+    private Long selectOneLongTx(Connection conn, String sql, String param) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, param);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getLong(1);
+                return null;
+            }
+        }
+    }
+
+    private long insertAndReturnKeyTx(Connection conn, String sql, String param) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, param);
+            int a = ps.executeUpdate();
+            if (a <= 0) throw new SQLException("insert failed: " + sql);
+
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) return rs.getLong(1);
+            }
+        }
+        throw new SQLException("no generated key: " + sql);
+    }
+    
 }
