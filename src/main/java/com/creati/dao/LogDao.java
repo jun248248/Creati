@@ -1404,4 +1404,170 @@ public class LogDao {
         return 0;
     }
     
+    //최근 7일 로그 작성 수 (꾸준함)
+    public int countLogsLastNDays(String userId, int days) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT COUNT(*) AS cnt " +
+                     "FROM log " +
+                     "WHERE u_id = ? AND l_is_draft = 0 " +
+                     "  AND created_at >= (NOW() - INTERVAL ? DAY)";
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setInt(2, days);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("cnt");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0;
+    }
+    
+    //최근 7일 서로 다른 카테고리 수 (도전력)
+    public int countDistinctCategoriesLastNDays(String userId, int days) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT COUNT(DISTINCT i_id) AS cnt " +
+                     "FROM log " +
+                     "WHERE u_id = ? AND l_is_draft = 0 " +
+                     "  AND i_id IS NOT NULL AND i_id > 0 " +
+                     "  AND created_at >= (NOW() - INTERVAL ? DAY)";
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setInt(2, days);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("cnt");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0;
+    }
+    
+    //최근 7일 소통 수 = 댓글 + 공감 (소통력)
+    public int countSocialLastNDays(String userId, int days) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        String sql = """
+            SELECT
+              (
+                SELECT COUNT(*)
+                FROM reply r
+                JOIN log l ON r.l_id = l.l_id
+                WHERE l.u_id = ?
+                  AND l.l_is_draft = 0
+                  AND r.r_created_at >= (NOW() - INTERVAL ? DAY)
+              )
+              +
+              (
+                SELECT COUNT(*)
+                FROM log_reaction lr
+                JOIN log l2 ON lr.l_id = l2.l_id
+                WHERE l2.u_id = ?
+                  AND l2.l_is_draft = 0
+                  AND lr.lr_created_at >= (NOW() - INTERVAL ? DAY)
+              ) AS cnt
+            """;
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setInt(2, days);
+            ps.setString(3, userId);
+            ps.setInt(4, days);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("cnt");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0;
+    }
+    
+    //최근 N일 실행력 = SUCCESS 비율 (실행력)
+    public double calcSuccessRateLastNDays(String userId, int days) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        String sql = """
+            SELECT
+              SUM(CASE WHEN l_result_status='SUCCESS' THEN 1 ELSE 0 END) AS succ,
+              COUNT(*) AS total
+            FROM log
+            WHERE u_id = ?
+              AND l_is_draft = 0
+              AND created_at >= (NOW() - INTERVAL ? DAY)
+            """;
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ps.setInt(2, days);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                int succ = rs.getInt("succ");
+                int total = rs.getInt("total");
+                return total <= 0 ? 0.0 : (succ * 1.0 / total);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0.0;
+    }
+    //최근 30일 성찰력 = AI 분석 작성 비율 (성찰력)
+    public double calcAiAnalysisRateLast30Days(String userId) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        String sql = """
+            SELECT
+              COUNT(DISTINCT a.l_id) AS analyzed,
+              COUNT(DISTINCT l.l_id) AS total
+            FROM log l
+            LEFT JOIN ai_analysis a ON a.l_id = l.l_id
+            WHERE l.u_id = ?
+              AND l.l_is_draft = 0
+              AND l.created_at >= (NOW() - INTERVAL 30 DAY)
+            """;
+
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                int analyzed = rs.getInt("analyzed");
+                int total = rs.getInt("total");
+                return total <= 0 ? 0.0 : (analyzed * 1.0 / total);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return 0.0;
+    }
+    
 }

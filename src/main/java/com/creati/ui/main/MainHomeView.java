@@ -197,40 +197,49 @@ public class MainHomeView extends JPanel {
 	}
 
 	private JComponent statsCard() {
-		HomeCard card = new HomeCard("나의 성장 상태");
+	    HomeCard card = new HomeCard("나의 성장 상태");
 
-		JPanel body = new JPanel();
-		body.setOpaque(false);
-		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+	    JPanel body = new JPanel();
+	    body.setOpaque(false);
+	    body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-		
-		String typeChip = "꾸준러형";
-		String typeDesc = "매일매일 쌓는 타입";
+	    JLabel hint = new JLabel("이번 달의 성장 흐름을 한눈에 확인해요.");
+	    hint.setFont(UITheme.CAPTION);
+	    hint.setForeground(UITheme.RGB_140_140_140);
+	    hint.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		
-		JLabel hint = new JLabel("이번 달의 성장 흐름을 한눈에 확인해요.");
-		hint.setFont(UITheme.CAPTION);
-		hint.setForeground(UITheme.RGB_140_140_140);
-		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
+	    String[] axes = { "꾸준함", "도전력", "실행력", "회복력", "성찰력", "소통력" };
 
-		
-		JComponent typeCard = buildTypeCard(typeChip, typeDesc);
-		typeCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+	    com.creati.model.User u = AppState.get().getCurrentUser();
+	    String userId = (u != null) ? u.getId() : null;
 
-		
-		String[] axes = { "꾸준함", "도전력", "실행력", "회복력", "성찰력", "소통력" };
-		int[] scores = { 2, 2, 1, 3, 2, 1 };
-		JComponent radar = new MainUiParts.RadarChart(axes, scores);
-		radar.setAlignmentX(Component.LEFT_ALIGNMENT);
+	    StatService statService = new StatService();
 
-		body.add(hint);
-		body.add(Box.createVerticalStrut(10));
-		body.add(typeCard);
-		body.add(Box.createVerticalStrut(10));
-		body.add(radar);
+	    int[] scores;
+	    StatService.TypeInfo typeInfo;
 
-		card.setBody(body);
-		return card;
+	    if (userId == null || userId.isBlank()) {
+	        scores = new int[]{2, 2, 2, 2, 2, 2};
+	        typeInfo = new StatService.TypeInfo("꾸준러형", "매일매일 쌓는 타입");
+	    } else {
+	        scores = statService.getGrowthRadarScores(userId);     // ✅ DB 기반 점수
+	        typeInfo = statService.getTypeByTopAxis(scores);       // ✅ 최고 축 기반 유형
+	    }
+
+	    JComponent typeCard = buildTypeCard(typeInfo.chip, typeInfo.desc);
+	    typeCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+	    JComponent radar = new MainUiParts.RadarChart(axes, scores);
+	    radar.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+	    body.add(hint);
+	    body.add(Box.createVerticalStrut(10));
+	    body.add(typeCard);
+	    body.add(Box.createVerticalStrut(10));
+	    body.add(radar);
+
+	    card.setBody(body);
+	    return card;
 	}
 
 	private JComponent buildTypeCard(String typeChip, String desc) {
