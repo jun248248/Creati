@@ -1314,6 +1314,7 @@ public class LogDao {
             execDelete(conn, "DELETE FROM log_adjustment_point WHERE l_id = ?", logId);
 
             // 3) 마지막에 본문(log) 삭제 (내 글만 보호)
+            //
             try (PreparedStatement ps = conn.prepareStatement(
                     "DELETE FROM log WHERE l_id = ? AND u_id = ?")) {
                 ps.setLong(1, logId);
