@@ -1347,4 +1347,61 @@ public class LogDao {
         }
     }
     
+ // =========================
+    // 조회수 증가
+    // =========================
+    public void increaseView(long logId) {
+
+       Connection conn = null;
+       PreparedStatement pstmt = null;
+
+       String sql = "UPDATE log SET l_views = l_views + 1 WHERE l_id = ?";
+
+       try {
+          conn = pool.getConnection();
+          pstmt = conn.prepareStatement(sql);
+
+          pstmt.setLong(1, logId);
+
+          pstmt.executeUpdate();
+
+       } catch (Exception e) {
+          e.printStackTrace();
+       } finally {
+          pool.freeConnection(conn, pstmt);
+       }
+    }
+    
+    // =========================
+    // 조회수 조회
+    // =========================
+    public int getViewCount(long logId) {
+
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT l_views FROM log WHERE l_id = ?";
+
+        try {
+            conn = pool.getConnection();
+            pstmt = conn.prepareStatement(sql);
+
+            pstmt.setLong(1, logId);
+
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt("l_views");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, pstmt, rs);
+        }
+
+        return 0;
+    }
+    
 }
