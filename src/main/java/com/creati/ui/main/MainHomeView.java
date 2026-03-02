@@ -322,7 +322,7 @@ public class MainHomeView extends JPanel {
 		body.setOpaque(false);
 		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-		JLabel hint = new JLabel("<html><div style='line-height:1.5; text-align:left;'>" + "매달 1회, 이번 달 기록을 요약해 다음 달 집중 포인트를 받아볼 수 있어요." + "</div></html>");
+		JLabel hint = new JLabel("<html><div style='line-height:1.5; text-align:left;'>" + "이번 달 기록을 요약해 다음 달 집중 포인트를 받아볼 수 있어요." + "</div></html>");
 		hint.setFont(UITheme.CAPTION.deriveFont(12f));
 		hint.setForeground(UITheme.RGB_120_120_120);
 		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -366,16 +366,32 @@ public class MainHomeView extends JPanel {
 		genBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		genBtn.addActionListener(e -> {
+			com.creati.model.User user = AppState.get().getCurrentUser();
+			if (user == null) return;
 
-			String text = "이번 달은 기록의 시작은 빠르지만, 중간에 흐름이 끊기는 패턴이 보여요. "
-					+ "특히 ‘시간 부족’과 ‘계획 미흡’이 함께 등장하면서 재도전까지 이어지지 못한 날이 있었어요.\n\n"
-					+ "다음 달에는 목표를 크게 바꾸기보다, ‘기록 시간을 고정’하는 한 가지에만 집중해보면 좋아요. "
-					+ "예를 들면 하루 중 가장 부담이 덜한 시간(점심 직후/저녁 샤워 전 등)을 정하고, " + "그때는 ‘한 줄만’ 남기는 방식으로 시작해보는 걸 추천해요.\n\n"
-					+ "핵심은 ‘완벽’이 아니라 ‘지속’이에요. 작은 성공을 매일 하나씩 쌓아보자구요.";
+			genBtn.setEnabled(false);
+			genBtn.setText("생성 중...");
+			insightArea.setText("AI가 이번 달 기록을 분석하고 있어요...");
+			insightArea.setForeground(UITheme.RGB_120_120_120);
 
-			insightSetter.accept(text);
-			applyInsightText(insightArea);
-			insightArea.setCaretPosition(0);
+			new Thread(() -> {
+				String result;
+				try {
+					GptAnalysisService svc = new GptAnalysisService();
+					result = svc.analyzeMonthlyInsight(user.getId());
+				} catch (Exception ex) {
+					ex.printStackTrace();
+					result = "인사이트 생성 중 오류가 발생했어요.잠시 후 다시 시도해주세요.";
+				}
+				final String finalResult = result;
+				SwingUtilities.invokeLater(() -> {
+					insightSetter.accept(finalResult);
+					applyInsightText(insightArea);
+					insightArea.setCaretPosition(0);
+					genBtn.setEnabled(true);
+					genBtn.setText("월간 인사이트 생성");
+				});
+			}).start();
 		});
 
 		body.add(hint);

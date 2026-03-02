@@ -101,6 +101,35 @@ public class AiAnalysisDao {
     }
 
     // ─────────────────────────────────────────────
+    // SELECT: 특정 유저의 이번 달 AI 피드백 전체 (log 테이블 JOIN)
+    // ─────────────────────────────────────────────
+    public List<AiAnalysisRow> findThisMonthByUserId(String userId) {
+        String sql = "SELECT a.a_id, a.l_id, a.a_type, a.a_title, a.a_content, a.a_created_at " +
+                     "FROM ai_analysis a " +
+                     "JOIN log l ON a.l_id = l.l_id " +
+                     "WHERE l.u_id = ? " +
+                     "  AND YEAR(a.a_created_at)  = YEAR(NOW()) " +
+                     "  AND MONTH(a.a_created_at) = MONTH(NOW()) " +
+                     "ORDER BY a.a_created_at DESC";
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<AiAnalysisRow> list = new ArrayList<>();
+        try {
+            conn = pool.getConnection();
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            rs = ps.executeQuery();
+            while (rs.next()) list.add(mapRow(rs));
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, ps, rs);
+        }
+        return list;
+    }
+
+    // ─────────────────────────────────────────────
     // row mapper
     // ─────────────────────────────────────────────
     private AiAnalysisRow mapRow(ResultSet rs) throws Exception {
