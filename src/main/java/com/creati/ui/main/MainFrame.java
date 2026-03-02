@@ -49,8 +49,13 @@ public class MainFrame extends JFrame {
 	private ChallengeView challengeView;
 	private WriteLogView writeLogView;
 	private AiAnalysisView aiAnalysisView;
-	private final LogDetailView logDetailView = new LogDetailView(() -> showCard(CARD_CHALLENGE),
-			() -> openLogEdit(AppState.get().getSelectedLog()));
+	private final LogDetailView logDetailView = new LogDetailView(
+		    () -> showCard(CARD_CHALLENGE),
+		    () -> openLogEdit(AppState.get().getSelectedLog()),
+		    () -> deleteSelectedLog()
+		    );
+	private final com.creati.dao.LogDao logDao = new com.creati.dao.LogDao();
+	
 	private final CommunityView communityView = new CommunityView();
 	private final QuestionView questionView = new QuestionView();
 	private QuestionWriteView questionWriteView;
@@ -647,4 +652,43 @@ public class MainFrame extends JFrame {
 	        f.setVisible(true);
 	    });
 	}
+	private void deleteSelectedLog() {
+	    String id = AppState.get().getSelectedLogId();
+	    if (id == null || id.isBlank()) {
+	        JOptionPane.showMessageDialog(this, "삭제할 글을 찾지 못했어요.");
+	        return;
+	    }
+
+	    long logId;
+	    try {
+	        logId = Long.parseLong(id);
+	    } catch (NumberFormatException e) {
+	        JOptionPane.showMessageDialog(this, "삭제 ID가 올바르지 않아요: " + id);
+	        return;
+	    }
+
+	    String userId = (AppState.get().getCurrentUser() == null) ? null : AppState.get().getCurrentUser().getId();
+	    if (userId == null || userId.isBlank()) {
+	        JOptionPane.showMessageDialog(this, "로그인 정보가 없어서 삭제할 수 없어요.");
+	        return;
+	    }
+
+	    int r = JOptionPane.showConfirmDialog(this, "이 글을 삭제할까요?", "삭제 확인", JOptionPane.YES_NO_OPTION);
+	    if (r != JOptionPane.YES_OPTION) return;
+
+	    boolean ok = logDao.deleteLogWithExtras(logId, userId);
+	    if (!ok) {
+	        JOptionPane.showMessageDialog(this, "삭제 실패! (권한/ID/FK 확인)");
+	        return;
+	    }
+
+	    // 화면/상태 갱신
+	    AppState.get().clearSelectedLog();
+	    challengeView.refresh();
+	    communityView.refresh(); // 공개글 목록에도 영향
+
+	    showCard(CARD_CHALLENGE);
+	    JOptionPane.showMessageDialog(this, "삭제 완료!");
+	}
+	
 }
