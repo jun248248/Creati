@@ -352,4 +352,11 @@ public class CommunityView extends JPanel {
 			g2.drawString(text, x, ty); g2.dispose();
 		}
 	}
+	
+	public void refresh() {
+	    reloadFromStore();   // 커뮤니티 목록 다시 로드하는 내부 메서드가 이미 있으면 이걸 호출
+	    revalidate();
+	    repaint();
+	}
+	
 }

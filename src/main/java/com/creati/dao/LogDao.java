@@ -1298,4 +1298,52 @@ public class LogDao {
         throw new SQLException("no generated key: " + sql);
     }
     
+    public boolean deleteLogWithExtras(long logId, String userId) {
+        Connection conn = null;
+        try {
+            conn = pool.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1) 자식 테이블(댓글/리액션) 먼저
+            execDelete(conn, "DELETE FROM reply WHERE l_id = ?", logId);
+            execDelete(conn, "DELETE FROM log_reaction WHERE l_id = ?", logId);
+
+            // 2) 로그 부가(조인) 먼저
+            execDelete(conn, "DELETE FROM log_good_point WHERE l_id = ?", logId);
+            execDelete(conn, "DELETE FROM log_influence_factor WHERE l_id = ?", logId);
+            execDelete(conn, "DELETE FROM log_adjustment_point WHERE l_id = ?", logId);
+
+            // 3) 마지막에 본문(log) 삭제 (내 글만 보호)
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM log WHERE l_id = ? AND u_id = ?")) {
+                ps.setLong(1, logId);
+                ps.setString(2, userId);
+
+                int affected = ps.executeUpdate();
+                if (affected <= 0) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            try { if (conn != null) conn.rollback(); } catch (Exception ignore) {}
+            e.printStackTrace();
+            return false;
+        } finally {
+            try { if (conn != null) conn.setAutoCommit(true); } catch (Exception ignore) {}
+            pool.freeConnection(conn);
+        }
+    }
+
+    private void execDelete(Connection conn, String sql, long logId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, logId);
+            ps.executeUpdate();
+        }
+    }
+    
 }
