@@ -4,8 +4,6 @@ import java.util.List;
 
 /**
  * SocialRepository - 조회수/리액션/댓글 등 "커뮤니티 상호작용" 저장소 추상화
- *
- * DB 연동 시: InMemory 구현(SocialRepositoryInMemory) 대신 DB 구현체로 교체
  */
 public interface SocialRepository {
 

@@ -20,10 +20,6 @@ import java.time.LocalDate;
  * - 회원정보 수정 (아이디/전화번호 잠금)
  * - 비밀번호 변경 (동일 다이얼로그 내 탭)
  * - 관심분야(최대 3개)
- *
- * DB(TODO): user 테이블 업데이트
- * DB(TODO): 관심분야 매핑 테이블 업데이트
- * DB(TODO): 비밀번호 변경
  */
 public class SettingsDialog extends JDialog {
 
