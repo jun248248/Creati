@@ -7,6 +7,8 @@ import com.creati.model.LogStatus;
 import com.creati.ui.components.Chip;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+import com.creati.dao.LogDao;
+import com.creati.dto.PublicLogListDto;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -39,6 +41,8 @@ public class CommunityView extends JPanel {
 
 	private String query = "";
 	private String selectedCategory = null;
+	
+	private final LogDao logDao = new LogDao();
 
 	private final DefaultListModel<String> catModel = new DefaultListModel<>();
 	private final JList<String> catList = new JList<>(catModel);
@@ -259,17 +263,34 @@ public class CommunityView extends JPanel {
 	}
 
 	private void reloadFromStore() {
-		allLogs.clear();
-		for (LogPost p : Services.LOGS.list()) {
-			if (!"LOG".equals(p.type)) continue;
-			if (!p.isPublic) continue;
-			if (LogPost.TYPE_QNA.equals(p.type)) continue;
-			allLogs.add(new LogItem(p.id, p.field, p.subCategory, p.status, p.title, p.createdAt, true, "", "", "", "", "", ""));
-		}
-		if (allLogs.isEmpty()) {
-			allLogs.add(new LogItem("community_demo_1", "글", "일상 / 브이로그", LogStatus.IN_PROGRESS,
-					"(더미) 공개 성장 로그 예시", LocalDate.now(), true, "", "", "", "", "", ""));
-		}
+	    allLogs.clear();
+
+	    // ✅ DB에서 전체 공개글 조회(유저 제한 없음)
+	    List<PublicLogListDto> rows = logDao.findAllPublicLogs();
+
+	    for (PublicLogListDto r : rows) {
+	        // DB 상태값 -> UI LogStatus
+	        LogStatus st = LogStatus.IN_PROGRESS;
+	        if ("SUCCESS".equals(r.getResultStatus())) st = LogStatus.DONE;
+	        else if ("FAIL".equals(r.getResultStatus())) st = LogStatus.NEEDS_IMPROVEMENT;
+	        else if ("ONGOING".equals(r.getResultStatus())) st = LogStatus.IN_PROGRESS;
+
+	        allLogs.add(new LogItem(
+	                String.valueOf(r.getId()),
+	                r.getFieldName() != null ? r.getFieldName() : "기타",  // 분야(영상/글/...)
+	                "",                                                   // subCategory(없으면 빈칸)
+	                st,
+	                r.getTitle(),
+	                (r.getCreatedAt() != null) ? r.getCreatedAt().toLocalDate() : LocalDate.now(),
+	                true, // 공개글만 가져오므로 true
+	                "", "", "", "", "", ""
+	        ));
+	    }
+
+	    if (allLogs.isEmpty()) {
+	        allLogs.add(new LogItem("community_demo_1", "글", "일상 / 브이로그", LogStatus.IN_PROGRESS,
+	                "(더미) 공개 성장 로그 예시", LocalDate.now(), true, "", "", "", "", "", ""));
+	    }
 	}
 
 	private static class LogItem {
