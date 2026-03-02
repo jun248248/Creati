@@ -60,6 +60,7 @@ public class LogDetailView extends JPanel {
 	private JPanel secLearning;
 	private JPanel secGrowth;
 	private JPanel secLink;
+	private JPanel secVideo;
 	private JPanel secSocial;
 
 	private JComponent divAfterExpectation;
@@ -70,6 +71,7 @@ public class LogDetailView extends JPanel {
 	private JComponent divAfterLearning;
 	private JComponent divAfterGrowth;
 	private JComponent divAfterLink;
+	private JComponent divAfterVideo;
 
 	private JTextArea expectationArea;
 
@@ -462,6 +464,25 @@ public class LogDetailView extends JPanel {
 
 		secLink = sectionBlock("참고 링크", linkBody);
 		card.add(secLink);
+
+		divAfterLink = sectionDivider();
+		card.add(divAfterLink);
+
+		// 영상 섹션 (YouTube 등 영상 URL이 있을 때 표시)
+		JPanel videoBody = new JPanel(new BorderLayout());
+		videoBody.setOpaque(false);
+		videoBody.setAlignmentX(LEFT_ALIGNMENT);
+
+		JPanel videoPlaceholder = new JPanel(new BorderLayout());
+		videoPlaceholder.setOpaque(false);
+		videoPlaceholder.setPreferredSize(new Dimension(0, 340));
+		videoPlaceholder.setMaximumSize(new Dimension(Integer.MAX_VALUE, 340));
+		videoPlaceholder.setAlignmentX(LEFT_ALIGNMENT);
+		videoBody.add(videoPlaceholder, BorderLayout.CENTER);
+
+		secVideo = sectionBlock("영상", videoBody);
+		secVideo.putClientProperty("videoPlaceholder", videoPlaceholder);
+		card.add(secVideo);
 
 		return card;
 	}
@@ -1028,6 +1049,22 @@ public class LogDetailView extends JPanel {
 			}
 		}
 
+		// 영상 섹션: YouTube URL인 경우 표시
+		String videoEmbedUrl = extractYouTubeEmbedUrl(u.isBlank() ? firstNonBlank(post.linkUrl, post.link) : u);
+		boolean showVideo = videoEmbedUrl != null;
+		if (secVideo != null) {
+			secVideo.setVisible(showVideo);
+			if (showVideo) {
+				JPanel placeholder = (JPanel) secVideo.getClientProperty("videoPlaceholder");
+				if (placeholder != null) {
+					placeholder.removeAll();
+					placeholder.add(buildWebVideoPanel(videoEmbedUrl), BorderLayout.CENTER);
+					placeholder.revalidate();
+					placeholder.repaint();
+				}
+			}
+		}
+
 		if (socialCard != null)
 			socialCard.setVisible(post.isPublic);
 		boolean canSocial = post.isPublic;
@@ -1068,18 +1105,21 @@ public class LogDetailView extends JPanel {
 		boolean vLearning = secLearning.isVisible(); // [COLLAB] 필수
 		boolean vGrowth = secGrowth.isVisible(); // [COLLAB] 필수
 		boolean vLink = secLink.isVisible();
+		boolean vVideo = (secVideo != null) && secVideo.isVisible();
 		boolean vSocial = (secSocial != null) && secSocial.isVisible();
 
 		divAfterExpectation.setVisible(
-				vExpectation && (vResult || vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink));
-		divAfterResult.setVisible(vResult && (vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink));
-		divAfterFactors.setVisible(vFactors && (vProcess || vPlanGap || vLearning || vGrowth || vLink));
-		divAfterProcess.setVisible(vProcess && (vPlanGap || vLearning || vGrowth || vLink));
-		divAfterPlanGap.setVisible(vPlanGap && (vLearning || vGrowth || vLink));
-		divAfterLearning.setVisible(vLearning && (vGrowth || vLink || vSocial));
-		divAfterGrowth.setVisible(vGrowth && (vLink || vSocial));
+				vExpectation && (vResult || vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink || vVideo));
+		divAfterResult.setVisible(vResult && (vFactors || vProcess || vPlanGap || vLearning || vGrowth || vLink || vVideo));
+		divAfterFactors.setVisible(vFactors && (vProcess || vPlanGap || vLearning || vGrowth || vLink || vVideo));
+		divAfterProcess.setVisible(vProcess && (vPlanGap || vLearning || vGrowth || vLink || vVideo));
+		divAfterPlanGap.setVisible(vPlanGap && (vLearning || vGrowth || vLink || vVideo));
+		divAfterLearning.setVisible(vLearning && (vGrowth || vLink || vVideo || vSocial));
+		divAfterGrowth.setVisible(vGrowth && (vLink || vVideo || vSocial));
 		if (divAfterLink != null)
-			divAfterLink.setVisible(vLink && vSocial);
+			divAfterLink.setVisible(vLink && vVideo);
+		if (divAfterVideo != null)
+			divAfterVideo.setVisible(vVideo && vSocial);
 	}
 
 	private void rebuildChipWrap(JPanel wrap, List<String> values, ChipStyle style) {
@@ -1232,6 +1272,126 @@ public class LogDetailView extends JPanel {
 		if (r == JOptionPane.YES_OPTION) {
 			JOptionPane.showMessageDialog(this, "삭제 기능은 DB 연결 후 적용할 수 있어요.");
 		}
+	}
+
+	/**
+	 * YouTube/YouTu.be URL에서 embed URL을 추출합니다.
+	 * YouTube URL이 아니면 null을 반환합니다.
+	 */
+	private String extractYouTubeEmbedUrl(String url) {
+		if (url == null || url.isBlank()) return null;
+		String u = url.trim();
+
+		// youtu.be/VIDEO_ID
+		java.util.regex.Matcher m1 = java.util.regex.Pattern
+				.compile("(?:https?://)?youtu\\.be/([A-Za-z0-9_\\-]{11})")
+				.matcher(u);
+		if (m1.find()) return "https://www.youtube.com/embed/" + m1.group(1) + "?rel=0";
+
+		// youtube.com/watch?v=VIDEO_ID
+		java.util.regex.Matcher m2 = java.util.regex.Pattern
+				.compile("(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?.*v=([A-Za-z0-9_\\-]{11})")
+				.matcher(u);
+		if (m2.find()) return "https://www.youtube.com/embed/" + m2.group(1) + "?rel=0";
+
+		// youtube.com/embed/VIDEO_ID (이미 embed URL인 경우)
+		java.util.regex.Matcher m3 = java.util.regex.Pattern
+				.compile("(?:https?://)?(?:www\\.)?youtube\\.com/embed/([A-Za-z0-9_\\-]{11})")
+				.matcher(u);
+		if (m3.find()) return "https://www.youtube.com/embed/" + m3.group(1) + "?rel=0";
+
+		return null;
+	}
+
+	/**
+	 * YouTube 썸네일 + 클릭 시 브라우저 열기 패널 (순수 Swing).
+	 */
+	private JPanel buildWebVideoPanel(String embedUrl) {
+		String videoId = extractVideoId(embedUrl);
+		String watchUrl = "https://www.youtube.com/watch?v=" + videoId;
+		String thumbUrl = "https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg";
+
+		// 썸네일 커스텀 페인트 레이블
+		JLabel thumbLabel = new JLabel() {
+			private Image img = null;
+			{
+				new Thread(() -> {
+					try {
+						java.net.URL u = new java.net.URL(thumbUrl);
+						java.net.HttpURLConnection conn = (java.net.HttpURLConnection) u.openConnection();
+						conn.setConnectTimeout(4000);
+						conn.setReadTimeout(6000);
+						conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+						try (java.io.InputStream is = conn.getInputStream()) {
+							Image raw = javax.imageio.ImageIO.read(is);
+							if (raw != null) { img = raw; SwingUtilities.invokeLater(this::repaint); }
+						}
+					} catch (Exception ignored) {}
+				}).start();
+			}
+			@Override
+			protected void paintComponent(Graphics g) {
+				Graphics2D g2 = (Graphics2D) g.create();
+				g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				int w = getWidth(), h = getHeight();
+				if (img != null) {
+					int iw = img.getWidth(null), ih = img.getHeight(null);
+					double scale = Math.max((double) w / iw, (double) h / ih);
+					int sw = (int)(iw * scale), sh = (int)(ih * scale);
+					g2.drawImage(img, (w - sw) / 2, (h - sh) / 2, sw, sh, null);
+					g2.setColor(new Color(0, 0, 0, 80));
+					g2.fillRect(0, 0, w, h);
+				} else {
+					g2.setPaint(new java.awt.GradientPaint(0, 0, new Color(25, 22, 38), 0, h, new Color(12, 10, 20)));
+					g2.fillRect(0, 0, w, h);
+				}
+				// 재생 버튼 원
+				int cx = w / 2, cy = h / 2, r = 28;
+				g2.setColor(new Color(255, 255, 255, 210));
+				g2.fillOval(cx - r, cy - r, r * 2, r * 2);
+				// 재생 삼각형
+				int[] px = { cx - 9, cx - 9, cx + 16 };
+				int[] py = { cy - 13, cy + 13, cy };
+				g2.setColor(new Color(200, 0, 0));
+				g2.fillPolygon(px, py, 3);
+				// 하단 반투명 바
+				g2.setColor(new Color(0, 0, 0, 150));
+				g2.fillRect(0, h - 44, w, 44);
+				// 하단 텍스트
+				g2.setColor(new Color(220, 220, 220));
+				g2.setFont(FontKit.medium(12.5f));
+				g2.drawString("▶  YouTube에서 열기", 14, h - 16);
+				g2.dispose();
+			}
+		};
+		thumbLabel.setLayout(null);
+		thumbLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		thumbLabel.addMouseListener(new MouseAdapter() {
+			@Override public void mouseClicked(MouseEvent e) { openLink(watchUrl); }
+		});
+
+		JPanel wrapper = new JPanel(new BorderLayout());
+		wrapper.setOpaque(false);
+		wrapper.setAlignmentX(LEFT_ALIGNMENT);
+		wrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 280));
+		wrapper.setPreferredSize(new Dimension(0, 280));
+		wrapper.setBorder(BorderFactory.createLineBorder(UITheme.DIVIDER, 1));
+		wrapper.add(thumbLabel, BorderLayout.CENTER);
+		return wrapper;
+	}
+
+	/** embed/watch/youtu.be URL 에서 video ID(11자) 추출 */
+	private String extractVideoId(String url) {
+		if (url == null) return "";
+		for (String pat : new String[]{
+		        "/embed/([A-Za-z0-9_-]{11})",
+		        "[?&]v=([A-Za-z0-9_-]{11})",
+		        "youtu\\.be/([A-Za-z0-9_-]{11})"}) {
+		    java.util.regex.Matcher m = java.util.regex.Pattern.compile(pat).matcher(url);
+		    if (m.find()) return m.group(1);
+		}
+		return "";
 	}
 
 	private void styleTopButton(RoundedButton btn, Color bg, Color fg, boolean primary) {
