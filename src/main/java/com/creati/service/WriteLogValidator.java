@@ -1,4 +1,4 @@
-package com.creati.ui.main;
+package com.creati.service;
 
 // [COLLAB] NOTE: Keep validation rules out of View.
 

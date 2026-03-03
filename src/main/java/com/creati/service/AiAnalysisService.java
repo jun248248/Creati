@@ -1,6 +1,10 @@
-package com.creati.ui.main;
+package com.creati.service;
 
+import com.creati.model.AiAnalysisRecord;
+import com.creati.model.AiAnalysisStore;
 import com.creati.model.LogPost;
+import com.creati.model.AiAnalysisRecord.Type;
+import com.creati.ui.main.Services;
 import com.creati.util.EnvLoader;
 
 import java.net.URI;

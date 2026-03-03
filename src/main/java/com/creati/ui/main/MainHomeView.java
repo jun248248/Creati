@@ -1,21 +1,14 @@
 package com.creati.ui.main;
 
+import com.creati.model.AppState;
 import com.creati.service.GptAnalysisService;
 import com.creati.service.StatService;
-import com.creati.ui.main.MainUiParts.ChartCard;
-import com.creati.ui.main.MainUiParts.HomeCard;
-import com.creati.ui.main.MainUiParts.MiniBarChart;
-import com.creati.ui.main.MainUiParts.MiniLineChart;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
-
-
+import dialog.GptResultDialog;
 import com.creati.ui.components.RoundedLabel;
-import com.creati.service.GptAnalysisService;
-import com.creati.ui.main.GptResultDialog; 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-
 import static com.creati.ui.main.MainUiParts.*;
 
 import java.awt.*;
@@ -496,9 +489,7 @@ public class MainHomeView extends JPanel {
 			com.creati.model.User user = AppState.get().getCurrentUser();
 			if (user == null) return;
 
-			// 이번 달 로그 없으면 안내 다이얼로그
-			com.creati.model.User u = AppState.get().getCurrentUser();
-			if (u != null && logDao.countMyLogsThisMonth(u.getId()) == 0) {
+			if (user != null && logDao.countMyLogsThisMonth(user.getId()) == 0) {
 				JOptionPane.showMessageDialog(
 					this,
 					"이번 달에 작성한 로그가 없어요.\n로그를 먼저 남기면 더 정확한 인사이트를 받을 수 있어요!",

@@ -3,6 +3,13 @@ package com.creati.ui.main;
 import com.creati.dao.LogDao;
 import com.creati.dao.ReactionDao;
 import com.creati.dao.ReplyDao;
+import com.creati.model.AiAnalysisStore;
+import com.creati.model.DraftRepositoryInMemory;
+import com.creati.model.LogRepositoryDb;
+import com.creati.model.SocialRepositoryDb;
+import com.creati.service.AiAnalysisService;
+import com.creati.service.DraftService;
+import com.creati.service.SocialService;
 
 public final class Services {
 
@@ -19,7 +26,6 @@ public final class Services {
 				    new LogDao()
 				));
 
-	// AI 분석: AiAnalysisStore(DB 구현) + AiAnalysisService(Gemini API 연동)
 	public static final AiAnalysisService AI =
 			new AiAnalysisService(new AiAnalysisStore());
 }

@@ -8,12 +8,16 @@ import com.creati.ui.navigation.Navigator;
 import com.creati.ui.navigation.Route;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+
+import dialog.SettingsDialog;
+
 import com.creati.service.LogService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.basic.BasicMenuItemUI;
 
+import com.creati.model.AppState;
 import com.creati.model.LogPost;
 import static com.creati.ui.main.MainUiParts.*;
 

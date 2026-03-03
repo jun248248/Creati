@@ -1,4 +1,4 @@
-package com.creati.ui.main;
+package dialog;
 
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;

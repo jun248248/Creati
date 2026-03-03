@@ -1,4 +1,4 @@
-package com.creati.ui.main;
+package com.creati.model;
 
 import java.time.LocalDate;
 import java.util.Objects;

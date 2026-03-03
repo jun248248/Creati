@@ -1,10 +1,8 @@
-package com.creati.ui.main;
-
-import com.creati.model.User;
+package com.creati.model;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.creati.model.LogPost;
+import com.creati.ui.main.Services;
 
 public final class AppState {
 

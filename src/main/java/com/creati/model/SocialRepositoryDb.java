@@ -1,4 +1,4 @@
-package com.creati.ui.main;
+package com.creati.model;
 
 import java.util.ArrayList;
 import java.util.List;

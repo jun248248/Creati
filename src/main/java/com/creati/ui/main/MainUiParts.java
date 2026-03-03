@@ -6,10 +6,7 @@ import javax.swing.border.EmptyBorder;
 
 import com.creati.util.UITheme;
 
-import com.creati.ui.components.CircleAvatar;
-import com.creati.ui.components.EllipsisButton;
-import com.creati.ui.components.RoundedButton;
-import com.creati.ui.components.RoundedLabel;
+import com.creati.ui.*;
 import com.creati.ui.components.ShadowLabel;
 
 import java.awt.*;
@@ -754,6 +751,9 @@ public class MainUiParts {
 	    if (metaRight != null && !metaRight.isBlank()) {
 	        ShadowLabel meta = textLabel(metaRight, UITheme.BODY_SM, UITheme.MUTED_TEXT);
 	        meta.setHorizontalAlignment(SwingConstants.RIGHT);
+	        // 날짜(yyyy.MM.dd 형식)가 잘리지 않도록 최소 너비 고정
+	        meta.setMinimumSize(new Dimension(82, 0));
+	        meta.setPreferredSize(new Dimension(82, meta.getPreferredSize().height));
 	        p.add(meta, BorderLayout.EAST);
 	    }
 

@@ -1,7 +1,9 @@
-package com.creati.ui.main;
+package dialog;
 
+import com.creati.model.AppState;
 import com.creati.model.User;
 import com.creati.ui.components.RoundedButton;
+import com.creati.ui.main.MainFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 import com.creati.service.AuthService;

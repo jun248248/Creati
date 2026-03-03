@@ -1,9 +1,8 @@
-package com.creati.ui.main;
+package com.creati.model;
 
 import java.util.List;
 
-import com.creati.model.LogPost;
-// DB(TODO): Replace with DB-backed repository.
+import com.creati.ui.main.LogRepository;
 
 public class LogRepositoryInMemory implements LogRepository {
 

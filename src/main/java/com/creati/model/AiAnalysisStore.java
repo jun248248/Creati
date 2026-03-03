@@ -1,4 +1,4 @@
-package com.creati.ui.main;
+package com.creati.model;
 
 import com.creati.dao.AiAnalysisDao;
 import com.creati.dao.AiAnalysisDao.AiAnalysisRow;

@@ -41,7 +41,14 @@ public class CommunityView extends JPanel {
 
 	private String query = "";
 	private String selectedCategory = null;
-	
+	private SortMode sortMode = SortMode.DATE_DESC;
+
+	private enum SortMode {
+		DATE_DESC("최신순"), DATE_ASC("오래된순"), ALPHA_ASC("가나다순");
+		final String label;
+		SortMode(String label) { this.label = label; }
+	}
+
 	private final LogDao logDao = new LogDao();
 
 	private final DefaultListModel<String> catModel = new DefaultListModel<>();
@@ -137,6 +144,7 @@ public class CommunityView extends JPanel {
 		titleRow.add(Box.createHorizontalStrut(10));
 		titleRow.add(rightCount);
 		titleRow.add(Box.createHorizontalGlue());
+		titleRow.add(buildSortButtons());
 		rightTop.add(titleRow);
 		rightTop.add(Box.createVerticalStrut(10));
 
@@ -247,6 +255,48 @@ public class CommunityView extends JPanel {
 		}));
 	}
 
+	private JPanel buildSortButtons() {
+		JPanel wrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+		wrap.setOpaque(false);
+
+		for (SortMode mode : SortMode.values()) {
+			JButton btn = new JButton(mode.label);
+			btn.setFont(com.creati.util.FontKit.medium(11.5f));
+			btn.setFocusPainted(false);
+			btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+			btn.setBorder(BorderFactory.createCompoundBorder(
+					BorderFactory.createLineBorder(UITheme.RGB_210_210_220, 1, true),
+					new EmptyBorder(3, 10, 3, 10)));
+			btn.setPreferredSize(new Dimension(btn.getPreferredSize().width, 26));
+			updateSortBtnStyle(btn, mode == sortMode);
+			btn.addActionListener(e -> {
+				sortMode = mode;
+				for (Component c : wrap.getComponents()) {
+					if (c instanceof JButton b) {
+						updateSortBtnStyle(b, b == btn);
+					}
+				}
+				applyFilter();
+			});
+			wrap.add(btn);
+		}
+		return wrap;
+	}
+
+	private void updateSortBtnStyle(JButton btn, boolean active) {
+		if (active) {
+			btn.setBackground(UITheme.ACCENT_PURPLE);
+			btn.setForeground(UITheme.WHITE);
+			btn.setContentAreaFilled(true);
+			btn.setOpaque(true);
+		} else {
+			btn.setBackground(UITheme.WHITE);
+			btn.setForeground(UITheme.RGB_130_130_145);
+			btn.setContentAreaFilled(true);
+			btn.setOpaque(true);
+		}
+	}
+
 	private void applyFilter() {
 		reloadFromStore();
 		logModel.clear();
@@ -255,6 +305,16 @@ public class CommunityView extends JPanel {
 			boolean okCat = (selectedCategory == null) || Objects.equals(item.category, selectedCategory);
 			boolean okQuery = query.isEmpty() || (item.title != null && item.title.contains(query));
 			if (okCat && okQuery) filtered.add(item);
+		}
+		// 정렬
+		switch (sortMode) {
+			case DATE_DESC -> filtered.sort((a, b) -> b.createdAt.compareTo(a.createdAt));
+			case DATE_ASC  -> filtered.sort((a, b) -> a.createdAt.compareTo(b.createdAt));
+			case ALPHA_ASC -> filtered.sort((a, b) -> {
+				String ta = a.title != null ? a.title : "";
+				String tb = b.title != null ? b.title : "";
+				return ta.compareTo(tb);
+			});
 		}
 		for (LogItem item : filtered) logModel.addElement(item);
 		rightTitle.setText(selectedCategory == null ? "전체" : selectedCategory);
