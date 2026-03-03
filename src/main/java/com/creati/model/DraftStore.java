@@ -1,10 +1,13 @@
-package com.creati.ui.main;
+package com.creati.model;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+
+import com.creati.ui.main.WriteLogView;
+import com.creati.ui.main.WriteLogView.Draft;
 
 // DB(TODO): Replace in-memory draft store with repository.
 

@@ -1,5 +1,7 @@
 package com.creati.ui.main;
 
+import com.creati.model.AiAnalysisRecord;
+import com.creati.model.AppState;
 import com.creati.model.LogPost;
 import com.creati.ui.components.RoundedButton;
 import com.creati.util.FontKit;

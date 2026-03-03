@@ -1,16 +1,19 @@
-package com.creati.ui.main;
+package com.creati.service;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import java.awt.Window;
-import java.sql.SQLException;
 
+import com.creati.ui.main.MainFrame;
+import com.creati.ui.main.Services;
+import com.creati.ui.main.WriteLogView;
 import com.creati.ui.main.WriteLogView.Draft;
 import com.creati.dao.CategoryDao;
 import com.creati.dao.InterestDao;
 import com.creati.dao.LogDao;
 import com.creati.dto.LogDto;
+import com.creati.model.AppState;
 import com.creati.model.LogPost;
 import com.creati.model.LogStatus;
 import com.creati.model.User;

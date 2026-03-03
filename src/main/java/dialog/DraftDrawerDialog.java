@@ -1,5 +1,9 @@
-package com.creati.ui.main;
+package dialog;
 
+import com.creati.ui.main.MainUiParts;
+import com.creati.ui.main.Services;
+import com.creati.ui.main.WriteLogView;
+import com.creati.ui.main.WriteLogView.Draft;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 

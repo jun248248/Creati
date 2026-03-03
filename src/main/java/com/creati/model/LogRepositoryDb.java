@@ -1,11 +1,9 @@
-package com.creati.ui.main;
+package com.creati.model;
 
 import com.creati.dao.LogDao;
 import com.creati.dto.MyLogListDto;
 import com.creati.dto.PublicLogListDto;
-import com.creati.model.LogPost;
-import com.creati.model.LogStatus;
-import com.creati.model.User;
+import com.creati.ui.main.LogRepository;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

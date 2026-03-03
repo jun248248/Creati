@@ -1,10 +1,15 @@
-package com.creati.ui.main;
+package com.creati.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
+import com.creati.model.AppState;
+import com.creati.model.SocialRepository;
+import com.creati.model.SocialStore;
 import com.creati.model.User;
+import com.creati.model.SocialStore.Comment;
+import com.creati.model.SocialStore.ReactionType;
 
 /**
  * SocialService - UI에서 직접 Store를 만지지 않게 하는 "접점"

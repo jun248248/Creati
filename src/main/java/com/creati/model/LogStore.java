@@ -1,14 +1,9 @@
-package com.creati.ui.main;
-
-import com.creati.model.LogStatus;
+package com.creati.model;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import com.creati.model.LogPost;
-// DB(TODO): Replace in-memory store with repository.
 
 public final class LogStore {
 

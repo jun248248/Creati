@@ -25,8 +25,15 @@ public class ChallengeView extends JPanel {
 	private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
     private String query = "";
-    private String selectedCategory = null; 
+    private String selectedCategory = null;
+    private SortMode sortMode = SortMode.DATE_DESC;
     private static final int LEFT_PANEL_W = 240;
+
+    private enum SortMode {
+        DATE_DESC("최신순"), DATE_ASC("오래된순"), ALPHA_ASC("가나다순");
+        final String label;
+        SortMode(String label) { this.label = label; }
+    }
 
     private final DefaultListModel<String> catModel = new DefaultListModel<>();
     private final JList<String> catList = new JList<>(catModel);
@@ -156,6 +163,7 @@ public class ChallengeView extends JPanel {
         titleRow.add(Box.createHorizontalStrut(10));
         titleRow.add(rightCount);
         titleRow.add(Box.createHorizontalGlue());
+        titleRow.add(buildSortButtons());
 
         rightTop.add(titleRow);
         rightTop.add(Box.createVerticalStrut(10));
@@ -323,34 +331,72 @@ public class ChallengeView extends JPanel {
         }));
     }
 
+    private JPanel buildSortButtons() {
+        JPanel wrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        wrap.setOpaque(false);
+
+        for (SortMode mode : SortMode.values()) {
+            JButton btn = new JButton(mode.label);
+            btn.setFont(FontKit.medium(11.5f));
+            btn.setFocusPainted(false);
+            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btn.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(UITheme.RGB_210_210_220, 1, true),
+                    new EmptyBorder(3, 10, 3, 10)));
+            btn.setPreferredSize(new Dimension(btn.getPreferredSize().width, 26));
+            updateSortBtnStyle(btn, mode == sortMode);
+            btn.addActionListener(e -> {
+                sortMode = mode;
+                for (Component c : wrap.getComponents()) {
+                    if (c instanceof JButton b) updateSortBtnStyle(b, b == btn);
+                }
+                applyFilter();
+            });
+            wrap.add(btn);
+        }
+        return wrap;
+    }
+
+    private void updateSortBtnStyle(JButton btn, boolean active) {
+        if (active) {
+            btn.setBackground(UITheme.ACCENT_PURPLE);
+            btn.setForeground(UITheme.WHITE);
+        } else {
+            btn.setBackground(UITheme.WHITE);
+            btn.setForeground(UITheme.RGB_130_130_145);
+        }
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
+    }
+
     private void applyFilter() {
-        reloadFromStore(); 
+        reloadFromStore();
         logModel.clear();
 
         List<LogItem> filtered = new ArrayList<>();
-        
-        // 디버깅: allLogs에 진짜 데이터가 들어있는지 확인
 
         for (LogItem item : allLogs) {
-            // 1. 카테고리 비교 (trim()을 추가하여 공백 제거 비교)
-            boolean okCat = (selectedCategory == null) || 
-                            "전체".equals(selectedCategory) || 
+            boolean okCat = (selectedCategory == null) ||
+                            "전체".equals(selectedCategory) ||
                             Objects.equals(item.category, selectedCategory);
-            
-            // 2. 검색어 비교 (공백 제거 및 대소문자 무시)
             String trimmedQuery = query.trim().toLowerCase();
-            boolean okQuery = trimmedQuery.isEmpty() || 
+            boolean okQuery = trimmedQuery.isEmpty() ||
                              (item.title != null && item.title.toLowerCase().contains(trimmedQuery));
-            
-            if (okCat && okQuery) {
-                filtered.add(item);
-            } else {
-            }
+            if (okCat && okQuery) filtered.add(item);
         }
 
-        for (LogItem item : filtered) {
-            logModel.addElement(item);
+        // 정렬
+        switch (sortMode) {
+            case DATE_DESC -> filtered.sort((a, b) -> b.createdAt.compareTo(a.createdAt));
+            case DATE_ASC  -> filtered.sort((a, b) -> a.createdAt.compareTo(b.createdAt));
+            case ALPHA_ASC -> filtered.sort((a, b) -> {
+                String ta = a.title != null ? a.title : "";
+                String tb = b.title != null ? b.title : "";
+                return ta.compareTo(tb);
+            });
         }
+
+        for (LogItem item : filtered) logModel.addElement(item);
 
         rightTitle.setText(selectedCategory == null ? "전체" : selectedCategory);
         rightCount.setText(filtered.size() + "개");

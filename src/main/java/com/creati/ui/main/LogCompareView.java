@@ -2,6 +2,7 @@ package com.creati.ui.main;
 
 import com.creati.dao.LogDao;
 import com.creati.dto.LogDto;
+import com.creati.model.AppState;
 import com.creati.service.ConclusionBuilder;
 import com.creati.service.ConclusionBuilder.Result;
 import com.creati.service.LogCompareScorer;

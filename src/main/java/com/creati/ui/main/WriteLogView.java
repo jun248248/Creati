@@ -1,9 +1,13 @@
 package com.creati.ui.main;
 
 import com.creati.model.LogStatus;
+import com.creati.service.WriteLogController;
+import com.creati.service.WriteLogValidator;
 import com.creati.ui.components.ToggleChipGroup;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
+
+import dialog.DraftDrawerDialog;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -165,11 +169,11 @@ public class WriteLogView extends JPanel {
 	}
 
 
-	void clearDirty() {
+	public void clearDirty() {
 		dirty = false;
 	}
 
-	void refreshDraftDrawerIfOpen() {
+	public void refreshDraftDrawerIfOpen() {
 		if (drawer != null && drawer.isVisible()) drawer.refresh();
 	}
 	public boolean confirmLeave() {
@@ -1246,7 +1250,7 @@ private boolean validateStep(String key) {
 		controller.onTempSaveRequested(showToast);
 	}
 
-	void openDrawer(JFrame owner) {
+	public void openDrawer(JFrame owner) {
 		if (drawer == null)
 			drawer = new DraftDrawerDialog(owner, this::loadDraftIntoForm, id -> controller.onDeleteDraftRequested(id)); // DB
 		drawer.refresh();
@@ -1259,7 +1263,7 @@ private boolean validateStep(String key) {
 
 	
 
-	void handleSubmitResult(LogPost saved) {
+	public void handleSubmitResult(LogPost saved) {
 	    JOptionPane.showMessageDialog(this, editMode ? "수정 완료!" : "저장 완료!");
 
 	    if (editMode) {
@@ -1288,7 +1292,7 @@ private boolean validateStep(String key) {
 	        onRegistered.run();
 	}
 
-Draft snapshotFromWizard(boolean forDraft) {
+	public Draft snapshotFromWizard(boolean forDraft) {
 		Draft d = current;
 		d.title = titleField.getEffectiveText();
 		d.field = resolveField();
@@ -1340,7 +1344,7 @@ Draft snapshotFromWizard(boolean forDraft) {
 		return false;
 	}
 
-	LogPost toLogPost(Draft d) {
+	public LogPost toLogPost(Draft d) {
 		return new LogPost("LOG", d.id, d.field, d.category, (d.status == null ? LogStatus.IN_PROGRESS : d.status), d.title,
 				d.updatedAt.toLocalDate(), d.isPublic,
 
@@ -1813,7 +1817,7 @@ Draft snapshotFromWizard(boolean forDraft) {
 		}
 	}
 
-	boolean validateStepForController(String key) {
+	public boolean validateStepForController(String key) {
 		return validateStep(key);
 	}
 }

@@ -52,24 +52,15 @@ public class EnvLoader {
         }
     }
 
-    /**
-     * 키에 해당하는 값을 반환. 없으면 null.
-     */
     public static String get(String key) {
         return ENV.get(key);
     }
 
-    /**
-     * 키에 해당하는 값을 반환. 없으면 defaultValue.
-     */
     public static String get(String key, String defaultValue) {
         return ENV.getOrDefault(key, defaultValue);
     }
 
-    /**
-     * .env 파일을 찾는다.
-     * 실행 위치(working directory) 기준으로 탐색.
-     */
+  
     private static File findEnvFile() {
         // 이클립스 실행 시 working directory = 프로젝트 루트
         File f = new File(".env");

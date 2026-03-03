@@ -1,7 +1,11 @@
-package com.creati.ui.main;
+package com.creati.service;
 
 import java.util.List;
 import java.util.Objects;
+
+import com.creati.model.DraftRepository;
+import com.creati.ui.main.WriteLogView;
+import com.creati.ui.main.WriteLogView.Draft;
 
 public class DraftService {
 

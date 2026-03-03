@@ -1,7 +1,9 @@
 package com.creati.ui.main;
 
+import com.creati.model.AppState;
 import com.creati.model.LogPost;
 import com.creati.model.LogStatus;
+import com.creati.model.SocialStore;
 import com.creati.model.User;
 import com.creati.ui.components.Chip;
 import com.creati.ui.components.RoundedButton;
@@ -782,7 +784,6 @@ public class LogDetailView extends JPanel {
 
 			for (SocialStore.Comment c : list) {
 				boolean isMine = currentUser != null && c.author != null && c.author.equals(currentUser.getNickname());
-				System.out.println(c.author);
 				JPanel box = new JPanel();
 				box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 				if (isMine) {
@@ -943,6 +944,14 @@ public class LogDetailView extends JPanel {
 		            ? new com.creati.dao.UserDao().findNicknameById(post.authorId)
 		            : AppState.get().getCurrentUser().getNickname();
 		metaLabel.setText(displayAuthor + " · " + post.createdAt.format(fmt) + " · " + visibility);
+
+		// 수정/삭제 버튼: 현재 로그인 유저가 작성자일 때만 표시
+		com.creati.model.User currentUser = AppState.get().getCurrentUser();
+		boolean isMine = currentUser != null
+				&& post.authorId != null
+				&& post.authorId.equals(currentUser.getId());
+		editBtn.setVisible(isMine);
+		deleteBtn.setVisible(isMine);
 
 		String goal = firstNonBlank(post.goalText, "");
 		String mood = firstNonBlank(post.mood, post.feeling);

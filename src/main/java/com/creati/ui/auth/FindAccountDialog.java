@@ -8,8 +8,7 @@ import com.creati.util.UITheme;
 import java.awt.*;
 
 import com.creati.util.FontKit;
-// DB(TODO): Wire up account recovery actions when DB is available.
-
+// DB(TODO): Wire up account recovery actions when DB is available. (아직 미구현)
 public class FindAccountDialog extends JDialog {
 
     private final CardLayout card = new CardLayout();
