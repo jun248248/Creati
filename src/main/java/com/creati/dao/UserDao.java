@@ -496,4 +496,22 @@ public class UserDao {
 
         return false;
     }
+    
+    public boolean resetPassword(String userId, String newPw) {
+        String sql = "UPDATE users SET u_pw_hash = ? WHERE u_id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        try {
+            conn = pool.getConnection();
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, newPw);
+            pstmt.setString(2, userId);
+            return pstmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            pool.freeConnection(conn, pstmt);
+        }
+        return false;
+    }
 }

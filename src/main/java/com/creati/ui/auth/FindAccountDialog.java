@@ -2,13 +2,11 @@ package com.creati.ui.auth;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-
 import com.creati.util.UITheme;
-
 import java.awt.*;
-
 import com.creati.util.FontKit;
-// DB(TODO): Wire up account recovery actions when DB is available. (아직 미구현)
+import com.creati.service.EmailService;
+
 public class FindAccountDialog extends JDialog {
 
     private final CardLayout card = new CardLayout();
@@ -22,6 +20,10 @@ public class FindAccountDialog extends JDialog {
     private final JButton btnVerify = new JButton("확인");
     private final JPasswordField pfNew = new JPasswordField();
     private final JPasswordField pfNew2 = new JPasswordField();
+    
+    private String sentCode = null;       // 발송된 인증번호 저장
+    private long codeExpireTime = 0;      // 만료 시간 (발송 시각 + 5분)
+    private JTextField tfId = new JTextField(); 
 
     public FindAccountDialog(JFrame owner) {
         super(owner, "아이디 / 비밀번호 찾기", true);
@@ -110,10 +112,20 @@ public class FindAccountDialog extends JDialog {
                     idResultLabel.setText("가입하지 않은 회원입니다.");
                 }
             } else {
-                
-                // DB
-                JOptionPane.showMessageDialog(this, "비밀번호가 재설정되었습니다. (샘플)");
-                dispose();
+                String newPw = new String(pfNew.getPassword()).trim();
+                String newPw2 = new String(pfNew2.getPassword()).trim();
+
+                if (newPw.isEmpty()) { toast("새 비밀번호를 입력하세요."); return; }
+                if (!newPw.equals(newPw2)) { toast("비밀번호가 일치하지 않아요."); return; }
+                if (newPw.length() < 4) { toast("비밀번호는 4자 이상이어야 해요."); return; }
+
+                boolean ok = new com.creati.dao.UserDao().resetPassword(tfId.getText().trim(), newPw);
+                if (ok) {
+                    toast("비밀번호가 변경됐어요! 다시 로그인해주세요.");
+                    dispose();
+                } else {
+                    toast("변경 실패: 아이디를 다시 확인해주세요.");
+                }
             }
         });
 
@@ -174,7 +186,6 @@ public class FindAccountDialog extends JDialog {
         innerContent.setAlignmentX(Component.LEFT_ALIGNMENT);
         innerContent.setBackground(UITheme.WHITE);
 
-        JTextField tfId = new JTextField();
         JTextField tfEmail = new JTextField();
         styleField(tfId);
         styleField(tfEmail);
@@ -218,31 +229,61 @@ public class FindAccountDialog extends JDialog {
         btnReqCode.addActionListener(e -> {
             String id = tfId.getText().trim();
             String email = tfEmail.getText().trim();
-            if (id.isEmpty()) {
-                toast("아이디를 먼저 입력하세요.");
-                return;
-            }
-            if (email.isEmpty()) {
-                toast("이메일을 입력하세요.");
-                return;
-            }
-            // DB
-            tfCode.setEnabled(true);
-            btnVerify.setEnabled(true);
-            toast("인증번호를 이메일로 전송했습니다. (샘플)");
+
+            if (id.isEmpty()) { toast("아이디를 먼저 입력하세요."); return; }
+            if (email.isEmpty()) { toast("이메일을 입력하세요."); return; }
+
+            btnReqCode.setEnabled(false);
+            btnReqCode.setText("전송 중...");
+
+            new Thread(() -> {
+                try {
+                    sentCode = EmailService.sendVerificationCode(email);
+                    codeExpireTime = System.currentTimeMillis() + 5 * 60 * 1000; // 5분
+
+                    SwingUtilities.invokeLater(() -> {
+                        tfCode.setEnabled(true);
+                        btnVerify.setEnabled(true);
+                        btnReqCode.setText("재전송");
+                        btnReqCode.setEnabled(true);
+                        toast("인증번호를 이메일로 전송했어요!");
+                    });
+                } catch (Exception ex) {
+                    SwingUtilities.invokeLater(() -> {
+                        btnReqCode.setText("인증번호 요청");
+                        btnReqCode.setEnabled(true);
+                        toast("전송 실패: 이메일 주소를 확인해주세요.");
+                    });
+                }
+            }).start();
         });
 
         
         btnVerify.addActionListener(e -> {
             String code = tfCode.getText().trim();
-            if (code.isEmpty()) {
-                toast("인증번호를 입력하세요.");
+
+            if (code.isEmpty()) { toast("인증번호를 입력하세요."); return; }
+            if (sentCode == null) { toast("인증번호를 먼저 요청하세요."); return; }
+
+            if (System.currentTimeMillis() > codeExpireTime) {
+                toast("인증번호가 만료됐어요. 다시 요청해주세요.");
+                sentCode = null;
+                tfCode.setText("");
                 return;
             }
-            // DB
+
+            if (!code.equals(sentCode)) {
+                toast("인증번호가 일치하지 않아요.");
+                return;
+            }
+
+            // 인증 성공
+            sentCode = null;
             pfNew.setEnabled(true);
             pfNew2.setEnabled(true);
-            toast("인증 완료! 새 비밀번호를 설정하세요. (샘플)");
+            tfCode.setEnabled(false);
+            btnVerify.setEnabled(false);
+            toast("인증 완료! 새 비밀번호를 설정하세요.");
         });
 
         innerContent.add(makeFieldBlock("아이디", tfId));
