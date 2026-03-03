@@ -559,15 +559,23 @@ public class MainFrame extends JFrame {
 
 		// View Mapping — 화면 전환 시 에티 도움말 교체
 		if (ettiHelpManager != null) {
-			switch (key) {
-				case CARD_HOME      -> ettiHelpManager.setView(EttiHelpManager.ViewType.HOME);
-				case CARD_CHALLENGE -> ettiHelpManager.setView(EttiHelpManager.ViewType.CHALLENGE);
-				case CARD_STATS     -> ettiHelpManager.setView(EttiHelpManager.ViewType.LOG_COMPARE);
-				case CARD_AI        -> ettiHelpManager.setView(EttiHelpManager.ViewType.AI_ANALYSIS);
-				case CARD_COMMUNITY -> ettiHelpManager.setView(EttiHelpManager.ViewType.COMMUNITY);
-				case CARD_QNA_WRITE -> ettiHelpManager.setView(EttiHelpManager.ViewType.QUESTION_WRITE);
-				default -> {} // WRITE, LOG_DETAIL 등 서브뷰는 유지
-			}
+		    switch (key) {
+		        case CARD_HOME       -> ettiHelpManager.setView(EttiHelpManager.ViewType.HOME);
+		        case CARD_CHALLENGE  -> ettiHelpManager.setView(EttiHelpManager.ViewType.CHALLENGE);
+		        case CARD_STATS      -> ettiHelpManager.setView(EttiHelpManager.ViewType.LOG_COMPARE);
+		        case CARD_AI         -> ettiHelpManager.setView(EttiHelpManager.ViewType.AI_ANALYSIS);
+		        case CARD_COMMUNITY  -> ettiHelpManager.setView(EttiHelpManager.ViewType.COMMUNITY);
+		        case CARD_QNA_WRITE  -> ettiHelpManager.setView(EttiHelpManager.ViewType.QUESTION_WRITE);
+		        default -> {}
+		    }
+		}
+
+		// 에티 도움말 바 숨김/표시
+		if (topArea != null) {
+		    boolean hideEtti = CARD_WRITE.equals(key);
+		    topArea.getComponent(0).setVisible(!hideEtti); // 에티 바만 숨김
+		    topArea.revalidate();
+		    topArea.repaint();
 		}
 
 		if (Objects.equals(key, CARD_AI) && aiAnalysisView != null) {
