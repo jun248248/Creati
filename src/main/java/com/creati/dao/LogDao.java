@@ -236,10 +236,10 @@ public class LogDao {
         String sql = """
             INSERT INTO log (
                 u_id, l_title, i_id, c_id, l_result_status,
-                l_is_public, l_is_draft, l_content_url, l_goal, l_result_rating,
+                l_is_public, l_is_draft, l_content_url, l_url_description, l_goal, l_result_rating,
                 l_process, l_plan_difference, l_difference, l_reflection,
                 next_plan_type, retry_condition, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             """;
 
         try {
@@ -259,16 +259,17 @@ public class LogDao {
             pstmt.setBoolean(6, dto.getIsPublic() != null ? dto.getIsPublic() : false);
             pstmt.setBoolean(7, dto.getIsDraft() != null ? dto.getIsDraft() : false);
 
-            // 8~16
+            // 8~17
             pstmt.setString(8,  nullIfBlank(dto.getContentUrl()));
-            pstmt.setString(9,  nullIfBlank(dto.getGoal()));
-            pstmt.setString(10, dto.getResultRating()); // DB ENUM 문자열
-            pstmt.setString(11, nullIfBlank(dto.getProcess()));
-            pstmt.setString(12, dto.getPlanDifference()); // DB ENUM 문자열
-            pstmt.setString(13, nullIfBlank(dto.getDifference()));     // NULL 허용이면 null 가능
-            pstmt.setString(14, nullIfBlank(dto.getReflection()));
-            pstmt.setString(15, dto.getNextPlanType());
-            pstmt.setString(16, nullIfBlank(dto.getRetryCondition())); // NULL 허용이면 null 가능
+            pstmt.setString(9,  nullIfBlank(dto.getUrlDescription()));
+            pstmt.setString(10,  nullIfBlank(dto.getGoal()));
+            pstmt.setString(11, dto.getResultRating()); // DB ENUM 문자열
+            pstmt.setString(12, nullIfBlank(dto.getProcess()));
+            pstmt.setString(13, dto.getPlanDifference()); // DB ENUM 문자열
+            pstmt.setString(14, nullIfBlank(dto.getDifference()));     // NULL 허용이면 null 가능
+            pstmt.setString(15, nullIfBlank(dto.getReflection()));
+            pstmt.setString(16, dto.getNextPlanType());
+            pstmt.setString(17, nullIfBlank(dto.getRetryCondition())); // NULL 허용이면 null 가능
 
             int affected = pstmt.executeUpdate();
             if (affected > 0) {
@@ -307,6 +308,7 @@ public class LogDao {
                 l_is_public = ?,
                 l_is_draft = ?,
                 l_content_url = ?,
+                l_url_description = ?,
                 l_goal = ?,
                 l_result_rating = ?,
                 l_process = ?,
@@ -332,17 +334,18 @@ public class LogDao {
             pstmt.setBoolean(6, dto.getIsDraft() != null ? dto.getIsDraft() : false);
 
             pstmt.setString(7, dto.getContentUrl());
-            pstmt.setString(8, dto.getGoal());
-            pstmt.setString(9, dto.getResultRating());
-            pstmt.setString(10, dto.getProcess());
-            pstmt.setString(11, dto.getPlanDifference());
-            pstmt.setString(12, dto.getDifference());
-            pstmt.setString(13, dto.getReflection());
-            pstmt.setString(14, dto.getNextPlanType());
-            pstmt.setString(15, dto.getRetryCondition());
+            pstmt.setString(8,  dto.getUrlDescription());
+            pstmt.setString(9, dto.getGoal());
+            pstmt.setString(10, dto.getResultRating());
+            pstmt.setString(11, dto.getProcess());
+            pstmt.setString(12, dto.getPlanDifference());
+            pstmt.setString(13, dto.getDifference());
+            pstmt.setString(14, dto.getReflection());
+            pstmt.setString(15, dto.getNextPlanType());
+            pstmt.setString(16, dto.getRetryCondition());
 
-            pstmt.setLong(16, dto.getId());
-            pstmt.setString(17, dto.getUserId());
+            pstmt.setLong(17, dto.getId());
+            pstmt.setString(18, dto.getUserId());
 
             ok = pstmt.executeUpdate() > 0;
         } catch (Exception e) {
@@ -409,6 +412,7 @@ public class LogDao {
                     l.l_is_public,
                     l.l_is_draft,
                     l.l_content_url,
+                    l.l_url_description,
                     l.l_goal,
                     l.l_result_rating,
                     l.l_process,
@@ -472,7 +476,7 @@ public class LogDao {
             String painPoint = null;
 
             // linkPoint도 별도 컬럼 없으면 null
-            String linkPoint = null;
+            String linkPoint = rs.getString("l_url_description");
 
             // LogPost 생성 (WriteLogView.toLogPost()에서 쓰는 v2 생성자 시그니처 그대로)
             return new LogPost(
@@ -505,7 +509,7 @@ public class LogDao {
                 safe(nextPlan),
                 safe(retryCondition),
                 safe(linkUrl),
-                linkPoint
+                safe(linkPoint)
             );
 
         } catch (Exception e) {
@@ -1100,6 +1104,7 @@ public class LogDao {
                 l_is_public = ?,
                 l_is_draft = ?,
                 l_content_url = ?,
+                l_url_description = ?,
                 l_goal = ?,
                 l_result_rating = ?,
                 l_process = ?,
@@ -1126,19 +1131,20 @@ public class LogDao {
             ps.setBoolean(6, dto.getIsDraft() != null ? dto.getIsDraft() : false);
 
             ps.setString(7, nullIfBlank(dto.getContentUrl()));
-            ps.setString(8, nullIfBlank(dto.getGoal()));
-            ps.setString(9, nullIfBlank(dto.getResultRating()));
+            ps.setString(8, nullIfBlank(dto.getUrlDescription()));
+            ps.setString(9, nullIfBlank(dto.getGoal()));
+            ps.setString(10, nullIfBlank(dto.getResultRating()));
 
-            ps.setString(10, nullIfBlank(dto.getProcess()));
-            ps.setString(11, nullIfBlank(dto.getPlanDifference()));
-            ps.setString(12, nullIfBlank(dto.getDifference()));
-            ps.setString(13, nullIfBlank(dto.getReflection()));
+            ps.setString(11, nullIfBlank(dto.getProcess()));
+            ps.setString(12, nullIfBlank(dto.getPlanDifference()));
+            ps.setString(13, nullIfBlank(dto.getDifference()));
+            ps.setString(14, nullIfBlank(dto.getReflection()));
 
-            ps.setString(14, nullIfBlank(dto.getNextPlanType()));
-            ps.setString(15, nullIfBlank(dto.getRetryCondition()));
+            ps.setString(15, nullIfBlank(dto.getNextPlanType()));
+            ps.setString(16, nullIfBlank(dto.getRetryCondition()));
 
-            ps.setLong(16, dto.getId());
-            ps.setString(17, dto.getUserId());
+            ps.setLong(17, dto.getId());
+            ps.setString(18, dto.getUserId());
 
             return ps.executeUpdate() > 0;
         }

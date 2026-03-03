@@ -32,8 +32,18 @@ public class LogDto {
 	    private String retryCondition;  // retry_condition (TEXT, NULL 가능)
 
 	    private List<String> nextAdjustPoints; // log_adjustment_point 테이블 (조정 포인트 리스트)
+	    
+	    private String urlDescription; // l_ulr_description
 
-	    private LocalDateTime createdAt; // created_at (DATETIME)
+	    public String getUrlDescription() {
+			return urlDescription;
+		}
+
+		public void setUrlDescription(String urlDescription) {
+			this.urlDescription = urlDescription;
+		}
+
+		private LocalDateTime createdAt; // created_at (DATETIME)
 
 		public Long getId() {
 			return id;
