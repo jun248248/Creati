@@ -7,8 +7,11 @@ import java.util.Random;
 
 public class EmailService {
 
-    private static final String FROM_EMAIL = "nyoo0923@gmail.com"; // 발신 Gmail 주소
-    private static final String APP_PASSWORD = "whkw klfc vnck tbum"; // 앱 비밀번호
+	private static final String FROM_EMAIL =
+	        System.getenv("CREATI_GMAIL_USER");
+
+	private static final String APP_PASSWORD =
+	        System.getenv("CREATI_GMAIL_APP_PASS");
 
     public static String sendVerificationCode(String toEmail) throws Exception {
         // 6자리 랜덤 인증번호 생성
