@@ -230,7 +230,7 @@ public class CommunityView extends JPanel {
 				if (postToOpen == null) postToOpen = toPost(item);
 				Window w = SwingUtilities.getWindowAncestor(CommunityView.this);
 				if (w instanceof MainFrame) {
-					((MainFrame) w).openLogDetail(postToOpen);
+					((MainFrame) w).openLogDetail(postToOpen, "COMMUNITY");
 				}
 			}
 		});

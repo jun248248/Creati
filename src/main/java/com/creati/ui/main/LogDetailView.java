@@ -28,7 +28,7 @@ public class LogDetailView extends JPanel {
 	private static final String DUMMY_TEXT = "아직 작성되지 않았어요. 다음 기록에서 채워볼까요?";
 	private static final String DUMMY_PLAN = "다음에는 어떤 방식으로 시도해볼까요?";
 
-	private final Runnable onBack;
+	private Runnable onBack;
 	private LogPost boundPost;
 	private final Runnable onEdit;
 	private final Runnable onDelete;
@@ -1426,4 +1426,8 @@ public class LogDetailView extends JPanel {
 		}
 		return "나";
 	}
+	public void setOnBack(Runnable onBack) {
+		this.onBack = (onBack == null) ? () -> {} : onBack;
+	}
+	
 }
