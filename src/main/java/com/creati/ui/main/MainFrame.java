@@ -55,13 +55,15 @@ public class MainFrame extends JFrame {
 	private WriteLogView writeLogView;
 	private AiAnalysisView aiAnalysisView;
 
-	private final com.creati.dao.LogDao logDao = new com.creati.dao.LogDao(); // ??
+	private final com.creati.dao.LogDao logDao = new com.creati.dao.LogDao(); 
 	
 
 	private LogCompareView logCompareView; // ── 로그 비교 뷰 ──
 	private final LogDetailView logDetailView = new LogDetailView(
-			() -> showCard(CARD_CHALLENGE),
-			() -> openLogEdit(AppState.get().getSelectedLog()));
+		    () -> showCard(CARD_CHALLENGE),                         // 뒤로가기
+		    () -> openLogEdit(AppState.get().getSelectedLog()),     // 수정
+		    this::onDeleteLogRequested                               // ✅ 삭제
+		);
 
 	private final CommunityView communityView = new CommunityView();
 	private final QuestionView questionView   = new QuestionView();
@@ -588,6 +590,49 @@ public class MainFrame extends JFrame {
 	    AppState.get().clearSelectedLog();
 	    challengeView.refresh();
 	    communityView.refresh(); // 공개글 목록에도 영향
+
+	    showCard(CARD_CHALLENGE);
+	    JOptionPane.showMessageDialog(this, "삭제 완료!");
+	}
+	
+	private void onDeleteLogRequested() {
+	    String id = AppState.get().getSelectedLogId();
+	    if (id == null || id.isBlank()) {
+	        JOptionPane.showMessageDialog(this, "삭제할 글을 찾지 못했어요.");
+	        return;
+	    }
+
+	    int r = JOptionPane.showConfirmDialog(this, "이 글을 삭제할까요?", "삭제 확인", JOptionPane.YES_NO_OPTION);
+	    if (r != JOptionPane.YES_OPTION) return;
+
+	    com.creati.model.User u = AppState.get().getCurrentUser();
+	    String userId = (u != null) ? u.getId() : null;
+	    if (userId == null || userId.isBlank()) {
+	        JOptionPane.showMessageDialog(this, "로그인 정보가 없어서 삭제할 수 없어요.");
+	        return;
+	    }
+
+	    long logId;
+	    try {
+	        logId = Long.parseLong(id);
+	    } catch (NumberFormatException e) {
+	        JOptionPane.showMessageDialog(this, "잘못된 글 ID라 삭제할 수 없어요. (id=" + id + ")");
+	        return;
+	    }
+
+	    boolean ok = logDao.deleteLogWithExtras(logId, userId); // LogDao에 복구한 메서드
+	    if (!ok) {
+	        JOptionPane.showMessageDialog(this, "삭제 실패! (권한이 없거나 DB 오류)");
+	        return;
+	    }
+
+	    // 선택 상태 정리
+	    AppState.get().clearSelectedLog();
+
+	    // 목록/커뮤니티 갱신 (커뮤니티에 refresh() 없으면 reloadFromStore 같은 걸 호출)
+	    if (challengeView != null) challengeView.refresh();
+	    // communityView에 refresh()가 없으면 CommunityView에 public void refresh() { reloadFromStore(); applyFilter(); } 같은 메서드 추가해두면 좋음
+	    // if (communityView != null) communityView.refresh();
 
 	    showCard(CARD_CHALLENGE);
 	    JOptionPane.showMessageDialog(this, "삭제 완료!");
