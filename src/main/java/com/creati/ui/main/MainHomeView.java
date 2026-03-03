@@ -355,17 +355,6 @@ public class MainHomeView extends JPanel {
 		body.add(Box.createVerticalStrut(10));
 		body.add(radarChart);
 
-
-
-	    JComponent radar = new MainUiParts.RadarChart(axes, scores);
-	    radar.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-	    body.add(hint);
-	    body.add(Box.createVerticalStrut(10));
-	    body.add(typeCard);
-	    body.add(Box.createVerticalStrut(10));
-	    body.add(radar);
-
 	    card.setBody(body);
 	    return card;
 	}

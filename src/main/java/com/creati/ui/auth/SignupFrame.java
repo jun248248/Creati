@@ -201,23 +201,10 @@ public class SignupFrame extends JFrame {
 
 		JButton dupBtn = secondarySmallButton("중복확인");
 		setButtonSize(dupBtn, new Dimension(80, FIELD_HEIGHT));
-		dupBtn.addActionListener(e -> {
-			String inputId = idField.getText().trim();
-			if (inputId.isEmpty()) {
-				JOptionPane.showMessageDialog(this, "아이디를 입력해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
-				return;
-			}
-			boolean isDup = new com.creati.dao.UserDao().isDuplicateId(inputId);
-			if (isDup) {
-				JOptionPane.showMessageDialog(this, "이미 사용 중인 아이디예요.", "중복확인", JOptionPane.WARNING_MESSAGE);
-			} else {
-				JOptionPane.showMessageDialog(this, "사용 가능한 아이디예요!", "중복확인", JOptionPane.INFORMATION_MESSAGE);
-			}
-		});
+		dupBtn.addActionListener(e -> checkDuplicateId());
 
 		JPanel idRow = rowX(idField, 8, dupBtn);
 		addRow(form, r, idLabel, idRow);
-		dupBtn.addActionListener(e -> checkDuplicateId());
 
 		JLabel pwLabel = label("비밀번호", LABEL_WIDTH);
 		pwField = new JPasswordField();
@@ -583,7 +570,7 @@ public class SignupFrame extends JFrame {
 	    String id = idField.getText().trim();
 
 	    if (id.isEmpty()) {
-	        toast("아이디를 입력해주세요.");
+	        JOptionPane.showMessageDialog(this, "아이디를 입력해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
 	        return;
 	    }
 
@@ -592,11 +579,10 @@ public class SignupFrame extends JFrame {
 	    boolean available = auth.isIdAvailable(id);
 
 	    if (available) {
-	        JOptionPane.showMessageDialog(this, "사용 가능한 아이디입니다.");
+	        JOptionPane.showMessageDialog(this, "사용 가능한 아이디예요!", "중복확인", JOptionPane.INFORMATION_MESSAGE);
 	    } else {
-	        JOptionPane.showMessageDialog(this, "이미 사용중인 아이디입니다.");
+	        JOptionPane.showMessageDialog(this, "이미 사용 중인 아이디에요.", "중복확인", JOptionPane.WARNING_MESSAGE);
 	    }
 	}
 	
 }
-
