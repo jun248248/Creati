@@ -481,6 +481,8 @@ public class LogCompareView extends JPanel {
         String userId = AppState.get().getCurrentUser() != null
             ? AppState.get().getCurrentUser().getId() : null;
 
+        logs.clear(); // 탭 재진입 시 중복 누적 방지
+
         if (userId != null) {
             try {
                 // DB(TODO): 실제 유저 로그 조회

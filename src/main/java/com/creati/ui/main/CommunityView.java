@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import com.creati.model.AppState;
 import com.creati.model.LogPost;
 
 public class CommunityView extends JPanel {
@@ -41,10 +42,10 @@ public class CommunityView extends JPanel {
 
 	private String query = "";
 	private String selectedCategory = null;
-	private SortMode sortMode = SortMode.DATE_DESC;
+	private SortMode sortMode = SortMode.INTEREST;
 
 	private enum SortMode {
-		DATE_DESC("최신순"), DATE_ASC("오래된순"), ALPHA_ASC("가나다순");
+		DATE_DESC("최신순"), DATE_ASC("오래된순"), ALPHA_ASC("가나다순"), INTEREST("관심사순");
 		final String label;
 		SortMode(String label) { this.label = label; }
 	}
@@ -315,6 +316,22 @@ public class CommunityView extends JPanel {
 				String tb = b.title != null ? b.title : "";
 				return ta.compareTo(tb);
 			});
+			case INTEREST  -> {
+				// 현재 유저의 관심분야 목록
+				com.creati.model.User u = AppState.get().getCurrentUser();
+				java.util.List<String> interests = (u != null && u.getInterests() != null)
+						? u.getInterests() : java.util.List.of();
+				filtered.sort((a, b) -> {
+					int rankA = interests.indexOf(a.category);
+					int rankB = interests.indexOf(b.category);
+					// 관심분야에 없으면 맨 뒤로
+					if (rankA < 0) rankA = Integer.MAX_VALUE;
+					if (rankB < 0) rankB = Integer.MAX_VALUE;
+					if (rankA != rankB) return Integer.compare(rankA, rankB);
+					// 같은 관심분야면 최신순
+					return b.createdAt.compareTo(a.createdAt);
+				});
+			}
 		}
 		for (LogItem item : filtered) logModel.addElement(item);
 		rightTitle.setText(selectedCategory == null ? "전체" : selectedCategory);

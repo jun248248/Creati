@@ -39,8 +39,9 @@ public class AuthService {
         user.setPlatform(dto.getPlatform());
 
 
-        // TODO: 관심분야 조회해서 넣기
-        // user.setInterests(userDao.getUserInterests(id));
+        // 관심분야 DB에서 로드
+        List<String> interests = userDao.findInterestNamesByUserId(dto.getId());
+        user.setInterests(interests);
 
         return user;
     }

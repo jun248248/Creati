@@ -400,6 +400,10 @@ public class SettingsDialog extends JDialog {
         // UI 반영
         // =========================
 
+        // 저장 후 DB에서 관심분야 재조회해서 User에 반영
+        List<String> freshInterests = new com.creati.dao.UserDao().findInterestNamesByUserId(u.getId());
+        u.setInterests(freshInterests);
+
         AppState.get().setCurrentUser(u);
         parent.refreshHeaderUser();
 
