@@ -10,7 +10,6 @@ public final class Services {
 	}
 
 	public static final LogService LOGS = new LogService(new LogRepositoryDb(new LogDao()));
-	public static final QnaService QNA = new QnaService(new QnaRepositoryInMemory());
 	public static final DraftService DRAFTS = new DraftService(new DraftRepositoryInMemory());
 
 	public static final SocialService SOCIAL = new SocialService(

@@ -19,7 +19,6 @@ public class Navigator {
 			case COMMUNITY -> frame.showCommunity();
 			case QNA -> frame.showQna();
 			case QNA_DETAIL -> frame.showQnaDetail();
-			case QNA_WRITE -> frame.showQnaWrite();
 			case STATS -> frame.showStats();
 			case WRITE_LOG -> frame.showWriteLog();
 			case LOG_DETAIL -> frame.showLogDetail();

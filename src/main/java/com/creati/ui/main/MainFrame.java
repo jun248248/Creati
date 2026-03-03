@@ -66,12 +66,8 @@ public class MainFrame extends JFrame {
 		);
 
 	private final CommunityView communityView = new CommunityView();
-	private final QuestionView questionView   = new QuestionView();
-	private QuestionWriteView questionWriteView;
 
 	private final AtomicReference<LogPost> currentQnaPostRef = new AtomicReference<>();
-	private final QuestionDetailView questionDetailView =
-			new QuestionDetailView(() -> navigator.go(Route.QNA), null, null);
 
 	private JPanel topArea;
 
@@ -162,14 +158,6 @@ public class MainFrame extends JFrame {
 		contentCards.add(writeLogView, CARD_WRITE);
 
 		contentCards.add(communityView, CARD_COMMUNITY);
-
-		contentCards.add(questionView, CARD_QNA);
-		questionWriteView = new QuestionWriteView(this,
-				() -> showCard(CARD_QNA),
-				() -> { questionView.refresh(); showCard(CARD_QNA); }
-		);
-		contentCards.add(questionWriteView, CARD_QNA_WRITE);
-		contentCards.add(questionDetailView, CARD_QNA_DETAIL);
 
 		// ── 로그 비교 (CARD_STATS) ──
 		logCompareView = new LogCompareView();
@@ -280,10 +268,7 @@ public class MainFrame extends JFrame {
 			if (writeLogView != null) writeLogView.startNew();
 			showCard(CARD_WRITE);
 		}));
-		menu.add(createMenuItem("질문하기", () -> {
-			if (questionWriteView != null) questionWriteView.startNew();
-			showCard(CARD_QNA_WRITE);
-		}));
+		
 		return menu;
 	}
 
@@ -331,8 +316,6 @@ public class MainFrame extends JFrame {
 		side.add(Box.createVerticalStrut(6));
 		side.add(menuButton("커뮤니티",   CARD_COMMUNITY));
 		side.add(Box.createVerticalStrut(6));
-		side.add(menuButton("질문하기",   CARD_QNA));
-		side.add(Box.createVerticalGlue());
 		return side;
 	}
 
@@ -459,7 +442,6 @@ public class MainFrame extends JFrame {
 	public void openQnaDetail(LogPost post) {
 		if (post == null) { JOptionPane.showMessageDialog(this, "질문을 찾지 못했어요."); return; }
 		currentQnaPostRef.set(post);
-		questionDetailView.bind(post);
 		navigator.go(Route.QNA_DETAIL);
 	}
 
@@ -474,10 +456,6 @@ public class MainFrame extends JFrame {
 	public void showLogDetail()   { showCard(CARD_LOG_DETAIL); }
 	public void navigateToAi()    { showCard(CARD_AI); }
 
-	public void showQnaWrite() {
-		if (questionWriteView != null) questionWriteView.startNew();
-		showCard(CARD_QNA_WRITE);
-	}
 
 	public void showQnaDetail() {
 		LogPost post = currentQnaPostRef.get();
@@ -554,7 +532,6 @@ public class MainFrame extends JFrame {
 		searchBar.clear();
 
 		if      (Objects.equals(key, CARD_CHALLENGE)) { searchBar.setOnSearch(challengeView::setQuery);  challengeView.clearSearch(); }
-		else if (Objects.equals(key, CARD_QNA))       { searchBar.setOnSearch(questionView::setQuery);   questionView.clearSearch(); }
 		else if (Objects.equals(key, CARD_COMMUNITY)) { searchBar.setOnSearch(communityView::setQuery);  communityView.clearSearch(); }
 		else                                           { searchBar.setOnSearch(s -> {}); }
 
