@@ -441,6 +441,19 @@ public class MainFrame extends JFrame {
 		AppState.get().setSelectedLogId(post.id);
 		logDetailView.bind(post);
 		showCard(CARD_LOG_DETAIL);
+		openLogDetail(post, CARD_CHALLENGE);
+	}
+	
+	public void openLogDetail(LogPost post, String backCardKey) {
+		if (post == null) {
+			JOptionPane.showMessageDialog(this, "기록을 찾지 못했어요.");
+			return;
+		}
+		AppState.get().setSelectedLogId(post.id);
+		logDetailView.setOnBack(() -> showCard(backCardKey));
+		
+		logDetailView.bind(post);
+		showCard(CARD_LOG_DETAIL);
 	}
 
 	public void openQnaDetail(LogPost post) {
