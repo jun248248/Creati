@@ -122,6 +122,28 @@ public class MainFrame extends JFrame {
 		catch (Exception e) { return "⚙"; }
 	}
 
+	// ── 로그아웃 아이콘 (exit_to_app) ─────────────────────────────
+	private String makeLogoutIcon() {
+		try   { return new String(Character.toChars(0xE879)); }
+		catch (Exception e) { return "→"; }
+	}
+
+	// ── 로그아웃 처리 ─────────────────────────────────────────────
+	private void onLogout() {
+		int result = JOptionPane.showConfirmDialog(
+				this,
+				"로그아웃 하시겠어요?",
+				"로그아웃",
+				JOptionPane.YES_NO_OPTION,
+				JOptionPane.QUESTION_MESSAGE
+		);
+		if (result != JOptionPane.YES_OPTION) return;
+
+		AppState.get().setCurrentUser(null);
+		dispose();
+		SwingUtilities.invokeLater(() -> new com.creati.ui.auth.AuthFrame().setVisible(true));
+	}
+
 	// ── 루트 패널 ─────────────────────────────────────────────────
 	private JComponent buildRoot() {
 		JPanel root = new JPanel(new BorderLayout());
@@ -214,11 +236,26 @@ public class MainFrame extends JFrame {
 		settingsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		settingsBtn.addActionListener(e -> openSettings());
 
+		// ── 로그아웃 버튼 ──────────────────────────────────────────
+		JButton logoutBtn = new JButton(makeLogoutIcon());
+		logoutBtn.setToolTipText("로그아웃");
+		logoutBtn.setFont(FontKit.materialIcon(20f));
+		logoutBtn.setForeground(UITheme.RGB_130_130_145);
+		logoutBtn.setBackground(UITheme.WHITE);
+		logoutBtn.setBorder(new EmptyBorder(6, 6, 6, 6));
+		logoutBtn.setFocusPainted(false);
+		logoutBtn.setContentAreaFilled(false);
+		logoutBtn.setOpaque(false);
+		logoutBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		logoutBtn.addActionListener(e -> onLogout());
+
 		profileRow.add(avatar);
 		profileRow.add(Box.createHorizontalStrut(10));
 		profileRow.add(headerNickLabel);
 		profileRow.add(Box.createHorizontalStrut(10));
 		profileRow.add(settingsBtn);
+		profileRow.add(Box.createHorizontalStrut(2));
+		profileRow.add(logoutBtn);
 
 		RoundedButton writeBtn = new RoundedButton("새 글쓰기");
 		writeBtn.setBackground(UITheme.ACCENT_PURPLE);
@@ -629,4 +666,3 @@ public class MainFrame extends JFrame {
 	}
 	
 }
-

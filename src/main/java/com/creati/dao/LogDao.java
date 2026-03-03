@@ -479,7 +479,9 @@ public class LogDao {
             String linkPoint = rs.getString("l_url_description");
 
             // LogPost 생성 (WriteLogView.toLogPost()에서 쓰는 v2 생성자 시그니처 그대로)
-            return new LogPost(
+            String uId = rs.getString("u_id"); // 작성자 u_id
+
+            LogPost post = new LogPost(
                 "LOG",
                 String.valueOf(lId),
                 safe(field),
@@ -511,6 +513,8 @@ public class LogDao {
                 safe(linkUrl),
                 safe(linkPoint)
             );
+            post.authorId = safe(uId); // ← 작성자 ID 세팅
+            return post;
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1509,4 +1513,3 @@ public class LogDao {
 	}
 
 }
-

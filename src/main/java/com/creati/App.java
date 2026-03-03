@@ -6,12 +6,18 @@ import com.creati.ui.auth.AuthFrame;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
+import javafx.application.Platform;
 import javax.swing.*;
 import java.awt.*;
 import java.util.Enumeration;
 
 public class App {
     public static void main(String[] args) {
+        // JavaFX Platform이 마지막 창 닫힘 시 자동 종료되지 않도록 설정
+        // → 로그아웃 후 새 AuthFrame을 열어도 VideoPanel이 정상 재생됨
+        new javafx.embed.swing.JFXPanel(); // FX 툴킷 초기화
+        Platform.setImplicitExit(false);
+
         SwingUtilities.invokeLater(() -> {
 
             // 룩앤필 설정
