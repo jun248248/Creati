@@ -38,6 +38,7 @@ public class AuthService {
         user.setBirth(dto.getBirth());
         user.setPlatform(dto.getPlatform());
 
+
         // TODO: 관심분야 조회해서 넣기
         // user.setInterests(userDao.getUserInterests(id));
 
@@ -51,6 +52,7 @@ public class AuthService {
         if (id == null || id.trim().isEmpty()) return false;
         return !userDao.isDuplicateId(id);
     }
+
 
     // =========================
     // 회원가입

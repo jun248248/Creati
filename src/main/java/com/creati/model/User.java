@@ -1,6 +1,7 @@
 package com.creati.model;
 
 import java.time.LocalDate;
+
 import java.util.List;
 
 public class User {
@@ -26,6 +27,7 @@ public class User {
         this.id = id;
         this.password = password;
         this.nickname = nickname;
+
     }
 
     // getter / setter
@@ -54,5 +56,7 @@ public class User {
     public void setInterests(List<String> interests) { this.interests = interests; }
 
     public String getProfileResPath() { return profileResPath; }
+
     public void setProfileResPath(String profileResPath) { this.profileResPath = profileResPath; }
+
 }

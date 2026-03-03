@@ -455,13 +455,19 @@ public class MainUiParts {
 	
 	public static class RadarChart extends JComponent {
 		private final String[] axes;
-		private final int[] scores;
+		private int[] scores; // setScores()로 갱신 가능
 
 		public RadarChart(String[] axes, int[] scores) {
 			this.axes = axes;
 			this.scores = scores;
 			setOpaque(false);
 			setPreferredSize(new Dimension(10, 315));
+		}
+
+		/** 점수 갱신 후 다시 그리기 */
+		public void setScores(int[] newScores) {
+			this.scores = newScores;
+			repaint();
 		}
 
 		@Override
@@ -501,12 +507,17 @@ public class MainUiParts {
 				poly.addPoint(x, y);
 			}
 
-			g2.setColor(UITheme.RGBA_207_201_255_140);
-			g2.fillPolygon(poly);
+			// 모든 점수가 0이면 보라색 폴리곤 미표시
+			boolean hasAnyScore = false;
+			for (int s : scores) if (s > 0) { hasAnyScore = true; break; }
 
-			g2.setColor(UITheme.ACCENT_LAVENDER_BORDER);
-			g2.setStroke(new BasicStroke(1.2f));
-			g2.drawPolygon(poly);
+			if (hasAnyScore) {
+				g2.setColor(UITheme.RGBA_207_201_255_140);
+				g2.fillPolygon(poly);
+				g2.setColor(UITheme.ACCENT_LAVENDER_BORDER);
+				g2.setStroke(new BasicStroke(1.2f));
+				g2.drawPolygon(poly);
+			}
 
 			g2.setFont(UITheme.CAPTION);
 			g2.setColor(UITheme.RGB_110_110_110);
