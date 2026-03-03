@@ -47,6 +47,7 @@ public class MainFrame extends JFrame {
 	private final JPanel contentCards = new JPanel(cardLayout);
 	private String currentCardKey = CARD_HOME;
 	private JLabel headerNickLabel;
+	private JLabel ettiImageLabel; 
 
 	// ── 에티 도움말 라벨 & 매니저 ──────────────────────────────────
 	private JLabel ettiTitleLabel;
@@ -113,10 +114,22 @@ public class MainFrame extends JFrame {
 		setContentPane(buildRoot());
 		showCard(CARD_HOME);
 
-		// EttiHelpManager 초기화 — buildRoot() 이후 라벨이 생성되므로 여기서 세팅
 		if (ettiTitleLabel != null && ettiDescLabel != null) {
-			ettiHelpManager = new EttiHelpManager(ettiTitleLabel, ettiDescLabel, ettiIconLabel);
-			ettiHelpManager.setView(EttiHelpManager.ViewType.HOME);
+		    ettiHelpManager = new EttiHelpManager(ettiTitleLabel, ettiDescLabel, ettiIconLabel);
+
+		    ettiHelpManager.setOnEttiImageChange(imageName -> {
+		        String path = "/images/etti/etti_" + imageName + ".png";
+		        Icon icon = createHiDPIIconResource(path, 52, true);
+		        if (icon != null && ettiImageLabel != null) {
+		            SwingUtilities.invokeLater(() -> {
+		                ettiImageLabel.setIcon(icon);
+		                ettiImageLabel.revalidate();
+		                ettiImageLabel.repaint();
+		            });
+		        }
+		    });
+
+		    ettiHelpManager.setView(EttiHelpManager.ViewType.HOME);
 		}
 	}
 
@@ -387,11 +400,11 @@ public class MainFrame extends JFrame {
 				BorderFactory.createLineBorder(UITheme.RGB_230_230_235, 1, true),
 				new EmptyBorder(12, 20, 12, 12)));
 
-		JLabel etti = new JLabel();
+		ettiImageLabel = new JLabel();
 		Icon ettiIcon = createHiDPIIconResource(ETTI_RES, 52, true);
-		if (ettiIcon != null) etti.setIcon(ettiIcon);
-		else { etti.setText("에티"); etti.setHorizontalAlignment(SwingConstants.CENTER); }
-		etti.setPreferredSize(new Dimension(52, 52));
+		if (ettiIcon != null) ettiImageLabel.setIcon(ettiIcon);
+		else { ettiImageLabel.setText("에티"); ettiImageLabel.setHorizontalAlignment(SwingConstants.CENTER); }
+		ettiImageLabel.setPreferredSize(new Dimension(52, 52));
 
 		JPanel text = new JPanel();
 		text.setOpaque(false);
@@ -435,7 +448,7 @@ public class MainFrame extends JFrame {
 		text.add(Box.createVerticalStrut(2));
 		text.add(descRow);
 
-		bubble.add(etti, BorderLayout.WEST);
+		bubble.add(ettiImageLabel, BorderLayout.WEST);
 		bubble.add(text, BorderLayout.CENTER);
 		help.add(bubble, BorderLayout.CENTER);
 		return help;

@@ -38,6 +38,12 @@ public class AuthService {
         user.setBirth(dto.getBirth());
         user.setPlatform(dto.getPlatform());
 
+        String[] profiles = {
+            "profile_blue", "profile_gray", "profile_green",
+            "profile_orange", "profile_purple", "profile_red", "profile_yellow"
+        };
+        String random = profiles[new java.util.Random().nextInt(profiles.length)];
+        user.setProfileResPath("/images/profile/" + random + ".png");
 
         // 관심분야 DB에서 로드
         List<String> interests = userDao.findInterestNamesByUserId(dto.getId());

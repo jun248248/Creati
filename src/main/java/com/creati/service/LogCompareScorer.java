@@ -45,11 +45,10 @@ public class LogCompareScorer {
     public static ScoreBreakdown score(LogDto log) {
         if (log == null) return new ScoreBreakdown(0, 0, 0, 0, 0, 0);
 
-        // nextAdjustPoints 리스트 → 문자열로 변환 (2개 이상이면 multi로 판단)
         List<String> adjList = log.getNextAdjustPoints();
         String nextAdjust = (adjList != null && !adjList.isEmpty())
-            ? String.join("\n", adjList)   // 리스트를 줄바꿈으로 연결 → scoreTweakClarity에서 \n 감지
-            : s(log.getReflection());      // fallback: l_reflection
+            ? String.join("\n", adjList)  
+            : s(log.getReflection());      
 
         String nextPlan      = s(log.getNextPlanType());
         String retry         = s(log.getRetryCondition());
