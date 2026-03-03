@@ -30,6 +30,3 @@ replay_pid*
 /bin/
 /out/
 /target/
-
-# gemini key 
-.env
