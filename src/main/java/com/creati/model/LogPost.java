@@ -50,7 +50,8 @@ public class LogPost {
     public final String retryCondition;
     public final String linkUrl;
     public final String linkPoint;
-
+    public String authorId;   // ← 추가: 작성자 u_id
+    public String authorNick; // ← 추가: 작성자 닉네임
     
     
     

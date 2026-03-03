@@ -937,7 +937,12 @@ public class LogDetailView extends JPanel {
 		applyStatusChip(statusChip, post.status);
 
 		titleLabel.setText(safeText(post.title));
-		metaLabel.setText(post.createdAt.format(fmt) + " · " + visibility);
+		String displayAuthor = (post.authorNick != null && !post.authorNick.isBlank())
+		        ? post.authorNick
+		        : (post.authorId != null && !post.authorId.isBlank())
+		            ? new com.creati.dao.UserDao().findNicknameById(post.authorId)
+		            : AppState.get().getCurrentUser().getNickname();
+		metaLabel.setText(displayAuthor + " · " + post.createdAt.format(fmt) + " · " + visibility);
 
 		String goal = firstNonBlank(post.goalText, "");
 		String mood = firstNonBlank(post.mood, post.feeling);

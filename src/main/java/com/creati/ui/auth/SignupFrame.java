@@ -4,12 +4,15 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
 import com.creati.service.AuthService;
+import com.creati.dao.UserDao;
 import com.creati.util.FontKit;
 import com.creati.util.UITheme;
 
 import java.awt.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class SignupFrame extends JFrame {
@@ -40,6 +43,8 @@ public class SignupFrame extends JFrame {
 	private JComboBox<String> platformCombo;
 	private JComboBox<String> interestCombo;
 	private TagInput tagInput;
+
+	private final Map<String, Long> interestNameToId = new LinkedHashMap<>();
 
 	private JLabel msgLabel;
 
@@ -196,6 +201,19 @@ public class SignupFrame extends JFrame {
 
 		JButton dupBtn = secondarySmallButton("중복확인");
 		setButtonSize(dupBtn, new Dimension(80, FIELD_HEIGHT));
+		dupBtn.addActionListener(e -> {
+			String inputId = idField.getText().trim();
+			if (inputId.isEmpty()) {
+				JOptionPane.showMessageDialog(this, "아이디를 입력해주세요.", "알림", JOptionPane.WARNING_MESSAGE);
+				return;
+			}
+			boolean isDup = new com.creati.dao.UserDao().isDuplicateId(inputId);
+			if (isDup) {
+				JOptionPane.showMessageDialog(this, "이미 사용 중인 아이디예요.", "중복확인", JOptionPane.WARNING_MESSAGE);
+			} else {
+				JOptionPane.showMessageDialog(this, "사용 가능한 아이디예요!", "중복확인", JOptionPane.INFORMATION_MESSAGE);
+			}
+		});
 
 		JPanel idRow = rowX(idField, 8, dupBtn);
 		addRow(form, r, idLabel, idRow);
@@ -306,6 +324,7 @@ public class SignupFrame extends JFrame {
 
 		interestCombo = new JComboBox<>(new String[] { "선택", "영상", "이미지", "글", "음악" });
 		setFieldSize(interestCombo, new Dimension(RIGHT_W, FIELD_HEIGHT));
+		loadInterestOptions();
 
 		JPanel comboWrap = new JPanel(new BorderLayout());
 		comboWrap.setOpaque(false);
@@ -354,7 +373,6 @@ public class SignupFrame extends JFrame {
 	    String nickname = nickField.getText().trim();
 	    String phone = phoneField.getText().trim();
 
-	    // 🔥 기본 유효성 검사
 	    if (id.isEmpty() || pw.isEmpty() || nickname.isEmpty()) {
 	        toast("필수 항목을 입력해주세요.");
 	        return;
@@ -365,7 +383,6 @@ public class SignupFrame extends JFrame {
 	        return;
 	    }
 
-	    // 🔥 생년월일 조합
 	    LocalDate birth = null;
 	    if (birthYearCombo.getSelectedItem() != null) {
 	        int y = Integer.parseInt((String) birthYearCombo.getSelectedItem());
@@ -374,7 +391,6 @@ public class SignupFrame extends JFrame {
 	        birth = LocalDate.of(y, m, d);
 	    }
 
-	    // 🔥 이메일 조합
 	    String emailLocal = emailLocalField.getText().trim();
 	    String emailDomain = emailDomainField.getText().trim();
 	    String email = null;
@@ -382,17 +398,18 @@ public class SignupFrame extends JFrame {
 	        email = emailLocal + "@" + emailDomain;
 	    }
 
-	    // 🔥 플랫폼
 	    String platform = (String) platformCombo.getSelectedItem();
 	    if ("선택".equals(platform)) {
 	        platform = null;
 	    }
 
-	    // 🔥 관심분야 (문자열 → ID 변환 필요)
 	    java.util.Set<String> tags = tagInput.getTags();
+	    if (tags == null || tags.isEmpty()) {
+	        toast("관심분야를 최소 1개 선택해주세요.");
+	        return;
+	    }
 	    java.util.List<Long> interestIds = convertTagsToIds(new java.util.ArrayList<>(tags));
 
-	    // 🔥 AuthService 호출
 	    AuthService auth = AuthService.getInstance();
 
 	    boolean result = auth.signup(
@@ -412,19 +429,35 @@ public class SignupFrame extends JFrame {
 	}
 
 	private java.util.List<Long> convertTagsToIds(java.util.List<String> tags) {
-
 	    java.util.List<Long> ids = new ArrayList<>();
-
+	    if (tags == null) return ids;
 	    for (String tag : tags) {
-	        switch (tag) {
-	            case "영상": ids.add(1L); break;
-	            case "이미지": ids.add(2L); break;
-	            case "글": ids.add(3L); break;
-	            case "음악": ids.add(4L); break;
-	        }
+	        if (tag == null) continue;
+	        Long id = interestNameToId.get(tag.trim());
+	        if (id != null) ids.add(id);
 	    }
-
 	    return ids;
+	}
+
+	private void loadInterestOptions() {
+	    try {
+	        UserDao dao = new UserDao();
+	        LinkedHashMap<Long, String> map = dao.findAllInterests();
+	        if (map == null || map.isEmpty()) return;
+
+	        interestNameToId.clear();
+	        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+	        model.addElement("선택");
+	        for (Map.Entry<Long, String> e : map.entrySet()) {
+	            if (e.getKey() == null) continue;
+	            String name = (e.getValue() == null) ? "" : e.getValue().trim();
+	            if (name.isEmpty()) continue;
+	            interestNameToId.put(name, e.getKey());
+	            model.addElement(name);
+	        }
+	        interestCombo.setModel(model);
+	    } catch (Exception ignore) {
+	    }
 	}
 	
 	
@@ -543,6 +576,7 @@ public class SignupFrame extends JFrame {
 			days[i] = String.valueOf(i);
 		return days;
 	}
+
 	
 	private void checkDuplicateId() {
 
@@ -565,3 +599,4 @@ public class SignupFrame extends JFrame {
 	}
 	
 }
+

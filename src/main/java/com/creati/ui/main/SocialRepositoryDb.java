@@ -20,21 +20,25 @@ public class SocialRepositoryDb implements SocialRepository {
         this.logDao = logDao;
     }
 
-    // -------------------------------
-    // 댓글 저장
-    // -------------------------------
+    private Long parseId(String postId) {
+        try {
+            return Long.parseLong(postId);
+        } catch (NumberFormatException e) {
+            return null; // 더미 데이터면 null 반환
+        }
+    }
+
     @Override
     public void addComment(String postId, SocialStore.Comment c) {
-        long logId = Long.parseLong(postId);
+        Long logId = parseId(postId);
+        if (logId == null) return;
         replyDao.insertReply(logId, c.author, c.text);
     }
 
-    // -------------------------------
-    // 댓글 조회
-    // -------------------------------
     @Override
     public List<SocialStore.Comment> getComments(String postId) {
-        long logId = Long.parseLong(postId);
+        Long logId = parseId(postId);
+        if (logId == null) return new ArrayList<>();
 
         List<ReplyDto> dtos = replyDao.getRepliesByLogId(logId);
         List<SocialStore.Comment> result = new ArrayList<>();
@@ -59,26 +63,23 @@ public class SocialRepositoryDb implements SocialRepository {
 
     @Override
     public int addView(String postId) {
-
-        long logId = Long.parseLong(postId);
-
+        Long logId = parseId(postId);
+        if (logId == null) return 0;
         logDao.increaseView(logId);
-
         return logDao.getViewCount(logId);
     }
 
     @Override
     public int getViews(String postId) {
-
-        long logId = Long.parseLong(postId);
-
+        Long logId = parseId(postId);
+        if (logId == null) return 0;
         return logDao.getViewCount(logId);
     }
 
     @Override
     public void toggleUserReaction(String postId, String userId, SocialStore.ReactionType type) {
-
-        long logId = Long.parseLong(postId);
+        Long logId = parseId(postId);
+        if (logId == null) return;
         long rtId = type.ordinal() + 1;
 
         Long existing = reactionDao.getUserReaction(logId, userId);
@@ -86,18 +87,18 @@ public class SocialRepositoryDb implements SocialRepository {
         if (existing == null) {
             reactionDao.insertReaction(logId, rtId, userId);
         } else if (existing == rtId) {
-            // 같은거 다시 누르면 취소
             reactionDao.deleteReaction(logId, userId);
         } else {
             reactionDao.updateReaction(logId, rtId, userId);
         }
     }
-    
+
     @Override
     public SocialStore.ReactionType getUserReaction(String postId, String userId) {
+        Long logId = parseId(postId);
+        if (logId == null) return null;
 
-        Long rtId = reactionDao.getUserReaction(Long.parseLong(postId), userId);
-
+        Long rtId = reactionDao.getUserReaction(logId, userId);
         if (rtId == null) return null;
 
         return SocialStore.ReactionType.values()[(int)(rtId - 1)];
@@ -105,11 +106,15 @@ public class SocialRepositoryDb implements SocialRepository {
 
     @Override
     public int getReactionCount(String postId, SocialStore.ReactionType type) {
-        return reactionDao.countByReaction(Long.parseLong(postId), type.ordinal() + 1);
+        Long logId = parseId(postId);
+        if (logId == null) return 0;
+        return reactionDao.countByReaction(logId, type.ordinal() + 1);
     }
 
     @Override
     public int getTotalReactions(String postId) {
-        return reactionDao.countTotal(Long.parseLong(postId));
+        Long logId = parseId(postId);
+        if (logId == null) return 0;
+        return reactionDao.countTotal(logId);
     }
 }

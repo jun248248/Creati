@@ -31,6 +31,8 @@ public class LogDto {
 	    private String nextPlanType;    // next_plan_type (VARCHAR)
 	    private String retryCondition;  // retry_condition (TEXT, NULL 가능)
 
+	    private List<String> nextAdjustPoints; // log_adjustment_point 테이블 (조정 포인트 리스트)
+
 	    private LocalDateTime createdAt; // created_at (DATETIME)
 
 		public Long getId() {
@@ -167,6 +169,14 @@ public class LogDto {
 
 		public void setRetryCondition(String retryCondition) {
 			this.retryCondition = retryCondition;
+		}
+
+		public List<String> getNextAdjustPoints() {
+			return nextAdjustPoints;
+		}
+
+		public void setNextAdjustPoints(List<String> nextAdjustPoints) {
+			this.nextAdjustPoints = nextAdjustPoints;
 		}
 
 		public LocalDateTime getCreatedAt() {

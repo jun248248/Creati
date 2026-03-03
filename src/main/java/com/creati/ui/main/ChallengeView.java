@@ -561,35 +561,45 @@ public class ChallengeView extends JPanel {
         private final JLabel date = new JLabel();
 
         LogRowPanel() {
-            setLayout(new BorderLayout(12, 0));
-            setBorder(new EmptyBorder(10, 12, 10, 12));
-            setOpaque(true);
+		    setOpaque(true);
+		    setLayout(new BorderLayout());
+		    setBorder(new EmptyBorder(0, 12, 0, 12));
 
-            JPanel left = new JPanel();
-            left.setOpaque(false);
-            left.setLayout(new BoxLayout(left, BoxLayout.X_AXIS));
+		    title.setFont(UITheme.BODY);
+		    title.setForeground(UITheme.TEXT);
 
-            title.setFont(UITheme.BODY);
-            title.setForeground(UITheme.TEXT);
+		    lock.setFont(FontKit.materialIcon(16f));
+		    lock.setForeground(UITheme.RGB_120_120_130);
+		    lock.setBorder(new EmptyBorder(0, 2, 0, 2));
 
-            lock.setFont(FontKit.materialIcon(16f));
-            lock.setForeground(UITheme.RGB_120_120_130);
-            lock.setBorder(new EmptyBorder(0, 2, 0, 2));
+		    date.setFont(UITheme.CAPTION);
+		    date.setForeground(UITheme.RGB_130_130_140);
 
-            left.add(chip);
-            left.add(Box.createHorizontalStrut(10));
-            left.add(title);
-            left.add(Box.createHorizontalStrut(6));
-            left.add(lock);
-            left.add(Box.createHorizontalGlue());
+		    JPanel left = new JPanel();
+		    left.setOpaque(false);
+		    left.setLayout(new BoxLayout(left, BoxLayout.X_AXIS));
+		    chip.setAlignmentY(0.5f);
+		    title.setAlignmentY(0.5f);
+		    lock.setAlignmentY(0.5f);
+		    left.add(chip);
+		    left.add(Box.createHorizontalStrut(10));
+		    left.add(title);
+		    left.add(Box.createHorizontalStrut(6));
+		    left.add(lock);
 
-            date.setFont(UITheme.CAPTION);
-            date.setForeground(UITheme.RGB_130_130_140);
-            date.setHorizontalAlignment(SwingConstants.RIGHT);
+		    JPanel inner = new JPanel(new BorderLayout(12, 0));
+		    inner.setOpaque(false);
+		    inner.add(left, BorderLayout.CENTER);
+		    inner.add(date, BorderLayout.EAST);
 
-            add(left, BorderLayout.CENTER);
-            add(date, BorderLayout.EAST);
-        }
+		    setPreferredSize(new Dimension(0, 44));
+		    setLayout(new GridBagLayout());
+		    GridBagConstraints gbc = new GridBagConstraints();
+		    gbc.fill = GridBagConstraints.HORIZONTAL;
+		    gbc.weightx = 1.0;
+		    setBorder(new EmptyBorder(0, 12, 0, 12));
+		    add(inner, gbc);
+		}
 
         void setData(LogItem item, DateTimeFormatter df) {
             title.setText(item.title != null ? item.title : "");
