@@ -58,6 +58,7 @@ public class WriteLogView extends JPanel {
 		public String retryOne;
 		public boolean isDraft = true;
 		public LocalDateTime updatedAt = LocalDateTime.now();
+		public String urlDescription;
 	}
 
 
@@ -1296,6 +1297,7 @@ Draft snapshotFromWizard(boolean forDraft) {
 		d.isPublic = publicBtn.isSelected();
 		d.linkUrl = linkField.getEffectiveText();
 		d.linkPoint = linkFocusField.getEffectiveText();
+		d.urlDescription = d.linkPoint;
 		d.goalText = goalArea.getEffectiveText();
 		d.mood = stripEmoji(moodChips.getSelectedText());
 		d.goodPoints = readChecked(goodPointChecks, "기타");
@@ -1462,6 +1464,7 @@ Draft snapshotFromWizard(boolean forDraft) {
 
 		current.linkUrl = linkField.getEffectiveText();
 		current.linkPoint = linkFocusField.getEffectiveText();
+		current.urlDescription = current.linkPoint;
 
 		current.goalText = goalArea.getEffectiveText();
 		current.mood = stripEmoji(moodChips.getSelectedText());
@@ -1646,7 +1649,7 @@ Draft snapshotFromWizard(boolean forDraft) {
 		public Dimension getPreferredScrollableViewportSize() {
 			return getPreferredSize();
 		}
-
+		
 		@Override
 		public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
 			return 16;

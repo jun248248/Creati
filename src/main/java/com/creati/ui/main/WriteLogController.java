@@ -188,6 +188,7 @@ public class WriteLogController {
         dto.setIsDraft(d.isDraft);
 
         dto.setContentUrl(d.linkUrl);
+        dto.setUrlDescription(d.urlDescription);
 
         // log 테이블 본문 매핑
         dto.setGoal(d.goalText);                // l_goal
