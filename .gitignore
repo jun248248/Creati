@@ -31,5 +31,5 @@ replay_pid*
 /out/
 /target/
 
-# gemini key 
+# claude key 
 .env
