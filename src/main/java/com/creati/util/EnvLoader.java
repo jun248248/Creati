@@ -18,46 +18,44 @@ import java.util.Map;
  */
 public class EnvLoader {
 
-    private static final Map<String, String> ENV = new HashMap<>();
+    private static final Map<String, String> SYS_ENV = new HashMap<>(System.getenv());
 
-    static {
-        // 1순위: 시스템 환경변수 (서버 배포 환경)
-        ENV.putAll(System.getenv());
-
-        // 2순위: 프로젝트 루트의 .env 파일 (로컬 개발 환경)
-        File envFile = findEnvFile();
-        if (envFile != null && envFile.exists()) {
-            try (BufferedReader br = new BufferedReader(new FileReader(envFile))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    line = line.trim();
-                    // 빈 줄, 주석(#) 무시
-                    if (line.isEmpty() || line.startsWith("#")) continue;
-                    int eq = line.indexOf('=');
-                    if (eq < 1) continue;
-                    String key   = line.substring(0, eq).trim();
-                    String value = line.substring(eq + 1).trim();
-                    // 값에 따옴표가 있으면 제거 ("value" → value)
-                    if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
-                        value = value.substring(1, value.length() - 1);
-                    }
-                    // 시스템 환경변수가 있으면 덮어쓰지 않음
-                    ENV.putIfAbsent(key, value);
-                }
-            } catch (Exception e) {
-                System.err.println("[EnvLoader] .env 파일 읽기 실패: " + e.getMessage());
-            }
-        } else {
-            System.out.println("[EnvLoader] .env 파일 없음 → 시스템 환경변수만 사용");
-        }
-    }
-
+    /**
+     * 키를 조회할 때마다 .env 파일을 다시 읽어 반환합니다.
+     * 우선순위: 시스템 환경변수 > .env 파일
+     */
     public static String get(String key) {
-        return ENV.get(key);
+        // 1순위: 시스템 환경변수
+        if (SYS_ENV.containsKey(key)) return SYS_ENV.get(key);
+
+        // 2순위: .env 파일 (매번 새로 읽음)
+        File envFile = findEnvFile();
+        if (envFile == null || !envFile.exists()) return null;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(envFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                int eq = line.indexOf('=');
+                if (eq < 1) continue;
+                String k = line.substring(0, eq).trim();
+                if (!k.equals(key)) continue;
+                String value = line.substring(eq + 1).trim();
+                if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+                    value = value.substring(1, value.length() - 1);
+                }
+                return value;
+            }
+        } catch (Exception e) {
+            System.err.println("[EnvLoader] .env 파일 읽기 실패: " + e.getMessage());
+        }
+        return null;
     }
 
     public static String get(String key, String defaultValue) {
-        return ENV.getOrDefault(key, defaultValue);
+        String v = get(key);
+        return v != null ? v : defaultValue;
     }
 
   

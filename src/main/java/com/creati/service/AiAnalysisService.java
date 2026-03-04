@@ -19,11 +19,13 @@ import java.util.UUID;
 
 public class AiAnalysisService {
 
-    // 키는 프로젝트 루트 .env 파일에서 로드 (소스코드에 직접 작성 X)
-    private static final String GEMINI_API_KEY =
-            EnvLoader.get("GEMINI_API_KEY");
-    private static final String GEMINI_API_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
+    // Claude API 엔드포인트 및 모델 (키는 호출마다 동적으로 읽음)
+    private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
+    private static final String CLAUDE_MODEL   = "claude-haiku-4-5-20251001"; // 빠르고 저렴한 모델
+
+    private static String getApiKey() {
+        return EnvLoader.get("ANTHROPIC_API_KEY");
+    }
 
     private final AiAnalysisStore store;
 
@@ -63,7 +65,7 @@ public class AiAnalysisService {
         if (type == null) throw new IllegalArgumentException("type is required");
 
         LogPost log = Services.LOGS.getById(logId);
-        String content = callGemini(type, log);
+        String content = callClaude(type, log);
 
         return new AiAnalysisRecord(
                 "air_preview_" + UUID.randomUUID(),
@@ -99,99 +101,222 @@ public class AiAnalysisService {
         return save(logId, type, p.content);
     }
 
-    // ─── Gemini API 호출 ───────────────────────────
-    private String callGemini(AiAnalysisRecord.Type type, LogPost log) {
-        if (GEMINI_API_KEY == null || GEMINI_API_KEY.isBlank()) {
-            System.err.println("[AiAnalysisService] GEMINI_API_KEY 미설정 → 스텁 반환");
+    // ─── 자유 질문 (채팅 입력창) ───────────────────
+    public String askFreeText(String logId, String question) {
+        if (question == null || question.isBlank()) return "질문을 입력해 주세요.";
+
+        LogPost log = (logId != null && !logId.isBlank()) ? Services.LOGS.getById(logId) : null;
+
+        String context = (log != null)
+                ? "[성장 로그 정보]\n"
+                  + "제목: "           + titleOf(log) + "\n"
+                  + "목표: "           + s(log.goalText) + "\n"
+                  + "과정: "           + s(log.processText) + "\n"
+                  + "배운 점: "        + s(log.learningText) + "\n"
+                  + "아쉬운 점: "      + s(log.painPoint) + "\n"
+                  + "다음 시도 조건: " + s(log.retryCondition) + "\n"
+                  + "기분/평가: "      + s(log.mood) + "\n\n"
+                : "";
+
+        String prompt = context + "사용자 질문: " + question + "\n친근하고 따뜻하게, 구체적으로 한국어로 답해줘.";
+        String system = "너는 숙련된 크리에이터 컨설턴트 '에티'야.";
+
+        return callClaudeRaw(system, prompt, "AI 연결 중 오류가 발생했어요. 네트워크 상태를 확인해 주세요.");
+    }
+
+    // ─── Claude API 호출 (버튼 분석용) ────────────
+    private String callClaude(AiAnalysisRecord.Type type, LogPost log) {
+        String apiKey = getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            System.err.println("[AiAnalysisService] ANTHROPIC_API_KEY 미설정 → 스텁 반환");
             return buildStubContent(type, log);
         }
-        try {
-            String escaped = buildPrompt(type, log)
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
 
-            String jsonBody = "{\"contents\":[{\"parts\":[{\"text\":\"" + escaped + "\"}]}]}";
+        String system = "너는 숙련된 크리에이터 컨설턴트 '에티'야. 친근하고 따뜻하게, 한국어로 답해줘.";
+        String prompt = buildPrompt(type, log);
+
+        try {
+            String result = callClaudeRaw(system, prompt, null);
+            if (result == null) return buildStubContent(type, log);
+            return result;
+        } catch (Exception e) {
+            System.err.println("[AiAnalysisService] Claude 예외: " + e.getMessage());
+            return buildStubContent(type, log);
+        }
+    }
+
+    // ─── Claude API 공통 호출 ──────────────────────
+    private String callClaudeRaw(String system, String userPrompt, String fallback) {
+        String apiKey = getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            System.err.println("[AiAnalysisService] ANTHROPIC_API_KEY 미설정");
+            return fallback != null ? fallback : "API 키가 설정되지 않았어요. .env 파일에 ANTHROPIC_API_KEY를 추가해 주세요.";
+        }
+
+        try {
+            String jsonBody = "{"
+                    + "\"model\": \"" + CLAUDE_MODEL + "\","
+                    + "\"max_tokens\": 1024,"
+                    + "\"system\": \"" + escapeJson(system) + "\","
+                    + "\"messages\": [{\"role\": \"user\", \"content\": \"" + escapeJson(userPrompt) + "\"}]"
+                    + "}";
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(GEMINI_API_URL + GEMINI_API_KEY))
+                    .uri(URI.create(CLAUDE_API_URL))
                     .header("Content-Type", "application/json")
+                    .header("x-api-key", apiKey)
+                    .header("anthropic-version", "2023-06-01")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
             HttpResponse<String> resp =
                     HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
 
+            System.out.println("[AiAnalysisService] Claude 응답 코드: " + resp.statusCode());
+
             if (resp.statusCode() != 200) {
-                System.err.println("[AiAnalysisService] Gemini 오류 " + resp.statusCode());
-                return buildStubContent(type, log);
+                System.err.println("[AiAnalysisService] Claude 오류 " + resp.statusCode() + " → " + resp.body());
+                return fallback != null ? fallback : "AI 응답 중 오류가 발생했어요 (코드: " + resp.statusCode() + ")";
             }
-            return formatGeminiResponse(resp.body());
+
+            return parseClaudeResponse(resp.body());
 
         } catch (Exception e) {
-            System.err.println("[AiAnalysisService] Gemini 예외: " + e.getMessage());
-            return buildStubContent(type, log);
+            System.err.println("[AiAnalysisService] Claude 예외: " + e.getMessage());
+            return fallback != null ? fallback : "AI 연결 중 오류가 발생했어요.";
         }
     }
 
-    private String formatGeminiResponse(String rawJson) {
+    // ─── Claude 응답 JSON 파싱 + 마크다운 → 읽기 좋은 텍스트 변환 ──
+    private String parseClaudeResponse(String rawJson) {
         try {
-            String marker = "\"text\": \"";
+            // 공백 있는/없는 둘 다 처리
+            String marker = "\"text\":\"";
             int start = rawJson.indexOf(marker);
-            if (start < 0) return "AI 응답을 파싱하지 못했어요.";
+            if (start < 0) {
+                marker = "\"text\": \"";
+                start = rawJson.indexOf(marker);
+            }
+            if (start < 0) {
+                System.err.println("[AiAnalysisService] 파싱 실패, 원본: " + rawJson);
+                return "AI 응답을 파싱하지 못했어요.";
+            }
             start += marker.length();
             int end = start;
             while (end < rawJson.length()) {
                 char c = rawJson.charAt(end);
-                if (c == '"' && end > 0 && rawJson.charAt(end - 1) != '\\') break;
+                if (c == '"' && rawJson.charAt(end - 1) != '\\') break;
                 end++;
             }
             String text = rawJson.substring(start, end)
-                    .replace("\\n", "\n").replace("\\\"", "\"")
-                    .replace("\\\\", "\\").replace("**", "");
-            StringBuilder sb = new StringBuilder();
-            for (String line : text.split("\n")) {
-                String t = line.trim();
-                if (t.isEmpty()) continue;
-                sb.append(t.startsWith("-") || t.startsWith("•") ? "  " : "")
-                  .append(t).append("\n\n");
-            }
-            return sb.toString().trim();
+                    .replace("\\n", "\n")
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\");
+
+            return formatMarkdown(removeEmoji(text));
+
         } catch (Exception e) {
+            System.err.println("[AiAnalysisService] 파싱 예외: " + e.getMessage());
             return "AI 응답 처리 중 오류가 발생했어요.";
         }
+    }
+
+    // ─── 이모지 제거 ────────────────────────────
+    private String removeEmoji(String text) {
+        // 이모지 범위 제거 (Java unicode 정규식)
+        return text.replaceAll("[\ud83c\udf00-\ud83d\udde7]", "")
+                   .replaceAll("[\ud83d\udde8-\ud83e\uddff]", "")
+                   .replaceAll("[\u2600-\u27BF]", "")
+                   .replaceAll("[\uFE00-\uFE0F]", "")
+                   .replaceAll("\u200D", "")
+                   .replaceAll("  +", " ")
+                   .trim();
+    }
+
+    // ─── 마크다운 → 읽기 좋은 텍스트 변환 ────────
+    private String formatMarkdown(String text) {
+        StringBuilder sb = new StringBuilder();
+        String[] lines = text.split("\n");
+
+        for (int i = 0; i < lines.length; i++) {
+            String t = lines[i].trim();
+            if (t.isEmpty()) continue;
+
+            // ### 소제목 → 【 】 형태
+            if (t.startsWith("### ")) {
+                String title = t.substring(4).replaceAll("\\*\\*|\\*|#", "").trim();
+                // 이모지 포함된 제목이면 그대로, 아니면 ▸ 추가
+                sb.append("\n【 ").append(title).append(" 】\n");
+
+            // ## 중제목 → ─── 형태
+            } else if (t.startsWith("## ")) {
+                String title = t.substring(3).replaceAll("\\*\\*|\\*|#", "").trim();
+                sb.append("\n").append(title).append("\n");
+
+            // # 대제목
+            } else if (t.startsWith("# ")) {
+                String title = t.substring(2).replaceAll("\\*\\*|\\*|#", "").trim();
+                sb.append("\n◆ ").append(title).append("\n");
+
+            // --- 구분선 → 공백으로
+            } else if (t.equals("---") || t.equals("─────────────────────")) {
+                sb.append("\n");
+
+            // - 또는 • 리스트 항목
+            } else if (t.startsWith("- ") || t.startsWith("• ")) {
+                String item = t.substring(2).replaceAll("\\*\\*([^*]+)\\*\\*", "$1").trim();
+                sb.append("  · ").append(item).append("\n");
+
+            // 숫자 리스트 1. 2. 3.
+            } else if (t.matches("^\\d+\\.\\s.*")) {
+                String item = t.replaceAll("\\*\\*([^*]+)\\*\\*", "$1").trim();
+                sb.append("  ").append(item).append("\n");
+
+            // 일반 텍스트 - ** 볼드 제거
+            } else {
+                String clean = t.replaceAll("\\*\\*([^*]+)\\*\\*", "$1")
+                                .replaceAll("\\*([^*]+)\\*", "$1")
+                                .replace("#", "").trim();
+                if (!clean.isEmpty()) {
+                    sb.append(clean).append("\n");
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    // ─── JSON 문자열 이스케이프 ────────────────────
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     // ─── 프롬프트 생성 ─────────────────────────────
     private String buildPrompt(AiAnalysisRecord.Type type, LogPost log) {
         String context =
                 "[성장 로그 정보]\n"
-                + "제목: "        + titleOf(log) + "\n"
-                + "목표: "        + s(log == null ? null : log.goalText) + "\n"
-                + "과정: "        + s(log == null ? null : log.processText) + "\n"
-                + "배운 점: "     + s(log == null ? null : log.learningText) + "\n"
-                + "아쉬운 점: "   + s(log == null ? null : log.painPoint) + "\n"
+                + "제목: "           + titleOf(log) + "\n"
+                + "목표: "           + s(log == null ? null : log.goalText) + "\n"
+                + "과정: "           + s(log == null ? null : log.processText) + "\n"
+                + "배운 점: "        + s(log == null ? null : log.learningText) + "\n"
+                + "아쉬운 점: "      + s(log == null ? null : log.painPoint) + "\n"
                 + "다음 시도 조건: " + s(log == null ? null : log.retryCondition) + "\n"
-                + "기분/평가: "   + s(log == null ? null : log.mood) + "\n";
+                + "기분/평가: "      + s(log == null ? null : log.mood) + "\n";
 
         String instruction = switch (type) {
             case CAUSE ->
-                    "너는 숙련된 크리에이터 컨설턴트 '에티'야.\n"
-                    + "위 성장 로그를 읽고, 시도가 잘 안 된 핵심 원인을 분석해줘.\n"
-                    + "- 핵심 원인 2~3가지\n- 각 원인의 근거 (로그 내용 기반)\n- 한 줄 개선 제안\n"
-                    + "친근하고 따뜻하게, 한국어로 답해줘.";
+                    "위 성장 로그를 읽고, 시도가 잘 안 된 핵심 원인을 분석해줘.\n"
+                    + "- 핵심 원인 2~3가지\n- 각 원인의 근거 (로그 내용 기반)\n- 한 줄 개선 제안";
             case RETRO ->
-                    "너는 숙련된 크리에이터 컨설턴트 '에티'야.\n"
-                    + "위 성장 로그를 읽고 회고를 정리해줘.\n"
-                    + "- 잘한 점 2가지 이상\n- 아쉬운 점 2가지 이상\n- 다음 행동 제안\n"
-                    + "친근하고 따뜻하게, 한국어로 답해줘.";
+                    "위 성장 로그를 읽고 회고를 정리해줘.\n"
+                    + "- 잘한 점 2가지 이상\n- 아쉬운 점 2가지 이상\n- 다음 행동 제안";
             case RETRY ->
-                    "너는 숙련된 크리에이터 컨설턴트 '에티'야.\n"
-                    + "위 성장 로그를 읽고 재도전 방향을 알려줘.\n"
-                    + "- 다음 목표 (구체적)\n- 체크 포인트\n- 실패 대비 플랜\n"
-                    + "친근하고 따뜻하게, 한국어로 답해줘.";
+                    "위 성장 로그를 읽고 재도전 방향을 알려줘.\n"
+                    + "- 다음 목표 (구체적)\n- 체크 포인트\n- 실패 대비 플랜";
         };
         return context + "\n" + instruction;
     }
