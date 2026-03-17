@@ -461,37 +461,68 @@ public class AiAnalysisView extends JPanel {
         };
         pushUserMessage(userText);
 
+        // ─── [측정] 버튼 클릭 시점 기록 ──────────────────────────────────
+        long requestedAt = System.currentTimeMillis();
+        System.out.printf("[AI 성능] %-10s 분석 요청 | 스레드: %s%n",
+                type.label, Thread.currentThread().getName());
+
         // 로딩 중 메시지 표시 + 버튼 비활성화
-        pushEttiMessage("분석 중이에요... 잠깐만 기다려 주세요 🤔");
+        pushStreamingBubble(); // 빈 말풍선 먼저 추가 (스트리밍 텍스트 채울 자리)
         setButtonsEnabled(false);
 
-        // Gemini API 호출을 백그라운드 스레드에서 실행 (EDT 블로킹 방지)
-        new SwingWorker<AiAnalysisRecord, Void>() {
-            @Override
-            protected AiAnalysisRecord doInBackground() {
-                return Services.AI.preview(log.id, type);
-            }
+        String system = "너는 숙련된 크리에이터 컨설턴트 '에티'야. 친근하고 따뜻하게, 한국어로 답해줘.";
+        String prompt = Services.AI.buildPromptPublic(type, log);
 
-            @Override
-            protected void done() {
-                try {
-                    AiAnalysisRecord preview = get();
+        // 스트리밍 청크 누적용
+        StringBuilder accumulated = new StringBuilder();
+
+        Services.AI.callClaudeStreaming(
+            system,
+            prompt,
+
+            // onChunk: 청크 도착마다 말풍선 텍스트 실시간 업데이트
+            chunk -> {
+                if (chunk.startsWith("\u0000DONE\u0000")) {
+                    // 완료 신호 — 마크다운 정리된 최종 텍스트로 교체
+                    String finalText = chunk.substring(6);
+                    replaceStreamingBubbleText(finalText);
+
+                    // ─── [측정] 전체 완료
+                    System.out.printf("[AI 성능] %-10s 스트리밍 완료 | 전체 소요: %d ms%n",
+                            type.label, System.currentTimeMillis() - requestedAt);
+
+                    // pending에 저장 (저장 버튼용)
+                    String logId = log.id;
+                    String content = finalText;
+                    AiAnalysisRecord preview = new AiAnalysisRecord(
+                            "air_preview_" + java.util.UUID.randomUUID(),
+                            logId,
+                            type,
+                            log.title + " · " + type.label,
+                            java.time.LocalDate.now(),
+                            content
+                    );
                     pending.put(type, preview);
-
-                    // 로딩 메시지를 실제 결과로 교체
-                    replaceLastEttiMessage(preview.content);
-
                     refreshSaveButtonState();
                     refreshRecordList();
                     refreshAnalyzedState();
-                } catch (Exception ex) {
-                    replaceLastEttiMessage("분석 중 오류가 발생했어요. 다시 시도해 주세요.");
-                    ex.printStackTrace();
-                } finally {
-                    setButtonsEnabled(true);
+
+                } else {
+                    // 일반 청크 — 말풍선에 실시간 추가
+                    accumulated.append(chunk);
+                    replaceStreamingBubbleText(accumulated.toString());
                 }
+            },
+
+            // onComplete: 버튼 재활성화
+            () -> setButtonsEnabled(true),
+
+            // onError: 에러 메시지 표시
+            err -> {
+                replaceStreamingBubbleText("분석 중 오류가 발생했어요. 다시 시도해 주세요.");
+                setButtonsEnabled(true);
             }
-        }.execute();
+        );
     }
 
     private void onSave() {
@@ -771,6 +802,42 @@ public class AiAnalysisView extends JPanel {
     
     
     
+
+    // ─── 스트리밍 전용 말풍선 ─────────────────────────────────────────
+    // 빈 말풍선을 먼저 추가하고, 청크가 올 때마다 텍스트를 실시간으로 업데이트
+
+    /** 빈 스트리밍 말풍선 추가 (클라이언트 속성 "isStreaming" = true 로 식별) */
+    private void pushStreamingBubble() {
+        JComponent bubble = messageBubble("분석 중이에요...", true);
+        bubble.putClientProperty("isStreaming", true);
+        chatList.add(bubble);
+        chatList.add(Box.createVerticalStrut(10));
+        chatList.revalidate();
+        chatList.repaint();
+        scrollChatToBottom();
+    }
+
+    /** 스트리밍 말풍선의 텍스트를 실시간으로 교체 */
+    private void replaceStreamingBubbleText(String newText) {
+        Component[] comps = chatList.getComponents();
+        for (int i = comps.length - 1; i >= 0; i--) {
+            if (comps[i] instanceof JComponent jc
+                    && Boolean.TRUE.equals(jc.getClientProperty("isStreaming"))) {
+                int idx = i;
+                SwingUtilities.invokeLater(() -> {
+                    JComponent newBubble = messageBubble(newText, true);
+                    newBubble.putClientProperty("isStreaming", true);
+                    chatList.remove(idx);
+                    chatList.add(newBubble, idx);
+                    chatList.revalidate();
+                    chatList.repaint();
+                    scrollChatToBottom();
+                });
+                return;
+            }
+        }
+        SwingUtilities.invokeLater(() -> pushEttiMessage(newText));
+    }
 
     private void pushEttiMessage(String text) {
         chatList.add(messageBubble(text, true));

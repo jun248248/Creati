@@ -18,8 +18,8 @@
 	<classpathentry excluding="main/java/|main/resources/|main/" kind="src" path="src"/>
 	<classpathentry kind="src" path="src/main/java"/>
 	<classpathentry kind="src" path="src/main/resources"/>
-	<classpathentry kind="lib" path="C:/Java/mysql-connector-j-8.0.32.jar"/>
 	<classpathentry kind="lib" path="lib/jakarta.activation-2.0.1.jar"/>
 	<classpathentry kind="lib" path="lib/jakarta.mail-2.0.1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/user/Desktop/mysql-connector-j-8.3.0/mysql-connector-j-8.3.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

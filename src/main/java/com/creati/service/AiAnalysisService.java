@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import javax.swing.SwingUtilities;
+
 public class AiAnalysisService {
 
     // Claude API 엔드포인트 및 모델 (키는 호출마다 동적으로 읽음)
@@ -143,6 +145,135 @@ public class AiAnalysisService {
             System.err.println("[AiAnalysisService] Claude 예외: " + e.getMessage());
             return buildStubContent(type, log);
         }
+    }
+
+    // ─── Claude 스트리밍 API 호출 ─────────────────────────────────────
+    // 응답이 생성되는 즉시 onChunk 콜백으로 전달 → UI 실시간 업데이트
+    // 개선 전: 전체 완성 후 한 번에 표시 (약 10,000ms 대기)
+    // 개선 후: 첫 청크 도착 시점부터 표시 (약 500ms 내 첫 글자 노출)
+    public void callClaudeStreaming(String system, String userPrompt,
+                                    java.util.function.Consumer<String> onChunk,
+                                    Runnable onComplete,
+                                    java.util.function.Consumer<String> onError) {
+        String apiKey = getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            onError.accept("API 키가 설정되지 않았어요. .env 파일에 ANTHROPIC_API_KEY를 추가해 주세요.");
+            return;
+        }
+
+        try {
+            // stream: true 추가
+            String jsonBody = "{"
+                    + "\"model\": \"" + CLAUDE_MODEL + "\","
+                    + "\"max_tokens\": 1024,"
+                    + "\"stream\": true,"
+                    + "\"system\": \"" + escapeJson(system) + "\","
+                    + "\"messages\": [{\"role\": \"user\", \"content\": \"" + escapeJson(userPrompt) + "\"}]"
+                    + "}";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(CLAUDE_API_URL))
+                    .header("Content-Type", "application/json")
+                    .header("x-api-key", apiKey)
+                    .header("anthropic-version", "2023-06-01")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            // ─── [측정] 첫 청크 도착 시간 기록용
+            long[] firstChunkAt = {-1};
+            long requestedAt = System.currentTimeMillis();
+
+            // 스트리밍: BodyHandlers.ofLines() 로 SSE 라인 단위 수신
+            HttpClient.newHttpClient()
+                .sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                .thenAccept(resp -> {
+                    if (resp.statusCode() != 200) {
+                        onError.accept("AI 응답 중 오류가 발생했어요 (코드: " + resp.statusCode() + ")");
+                        return;
+                    }
+
+                    StringBuilder fullText = new StringBuilder();
+
+                    resp.body().forEach(line -> {
+                        // SSE 형식: "data: {...}" 또는 "data: [DONE]"
+                        if (!line.startsWith("data: ")) return;
+                        String data = line.substring(6).trim();
+                        if (data.equals("[DONE]")) return;
+
+                        // content_block_delta 이벤트에서 텍스트 추출
+                        if (!data.contains("content_block_delta")) return;
+
+                        String chunk = parseStreamChunk(data);
+                        if (chunk == null || chunk.isEmpty()) return;
+
+                        // ─── [측정] 첫 청크 도착 시점 기록
+                        if (firstChunkAt[0] < 0) {
+                            firstChunkAt[0] = System.currentTimeMillis();
+                            System.out.printf("[AI 성능 스트리밍] 첫 청크 도착: %d ms%n",
+                                    firstChunkAt[0] - requestedAt);
+                        }
+
+                        fullText.append(chunk);
+
+                        // EDT 에서 UI 업데이트
+                        SwingUtilities.invokeLater(() -> onChunk.accept(chunk));
+                    });
+
+                    // ─── [측정] 전체 완료 시점
+                    long finishedAt = System.currentTimeMillis();
+                    System.out.printf("[AI 성능 스트리밍] 전체 완료: %d ms | 첫 글자까지: %d ms%n",
+                            finishedAt - requestedAt,
+                            firstChunkAt[0] > 0 ? firstChunkAt[0] - requestedAt : -1);
+
+                    // 마크다운 정리는 전체 텍스트 기준으로 완료 후 1회
+                    String formatted = formatMarkdown(removeEmoji(fullText.toString()));
+                    SwingUtilities.invokeLater(() -> {
+                        onChunk.accept("\u0000DONE\u0000" + formatted); // 완료 신호 + 최종 텍스트
+                        onComplete.run();
+                    });
+                })
+                .exceptionally(e -> {
+                    System.err.println("[AiAnalysisService] 스트리밍 예외: " + e.getMessage());
+                    SwingUtilities.invokeLater(() -> onError.accept("AI 연결 중 오류가 발생했어요."));
+                    return null;
+                });
+
+        } catch (Exception e) {
+            System.err.println("[AiAnalysisService] 스트리밍 요청 예외: " + e.getMessage());
+            onError.accept("AI 연결 중 오류가 발생했어요.");
+        }
+    }
+
+    // ─── SSE 청크에서 텍스트 추출 ─────────────────────────────────────
+    private String parseStreamChunk(String data) {
+        try {
+            // {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
+            String marker = "\"text\":\"";
+            int start = data.indexOf(marker);
+            if (start < 0) {
+                marker = "\"text\": \"";
+                start = data.indexOf(marker);
+            }
+            if (start < 0) return null;
+            start += marker.length();
+            int end = start;
+            while (end < data.length()) {
+                char c = data.charAt(end);
+                if (c == '"' && data.charAt(end - 1) != '\\') break;
+                end++;
+            }
+            return data.substring(start, end)
+                    .replace("\\n", "\n")
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // ─── 스트리밍용 프롬프트 빌더 (외부 접근) ─────────────────────────
+    public String buildPromptPublic(AiAnalysisRecord.Type type, LogPost log) {
+        return buildPrompt(type, log);
     }
 
     // ─── Claude API 공통 호출 ──────────────────────
